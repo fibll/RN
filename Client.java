@@ -74,10 +74,11 @@ class Client {
 			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 			
 // loop with condition: if boolean first = true, then startPacket, else Datapacket
-			for(int i = 0; i < 1; i++)
+			for(int i = 0; i < 2; i++)
 			{
 				if(first)
 				{
+					System.out.println("\n\nFirst Time");
 					// prepare start package
 					bufSend = ByteBuffer.wrap(sendData);
 					bufSend.put(sessionNumber);
@@ -100,6 +101,7 @@ class Client {
 				}
 				else
 				{
+					System.out.println("\n\nSecond Time");
 					// prepare data package
 					bufSend = ByteBuffer.wrap(sendData);
 					bufSend.put(sessionNumber);
@@ -126,6 +128,9 @@ class Client {
 				else
 					System.out.println("ACK stimmt nicht");
 			    
+				// prepare for next send process
+				sendData = new byte[1024];
+				receiveData = new byte[1024];
 			    packageNumber++;
 			    
 			    if(first)

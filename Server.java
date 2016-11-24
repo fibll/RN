@@ -118,9 +118,10 @@ class Server {
 						serverSocket.send(sendPacket);
 						System.out.println("Package sent");
 						
-						// initialize packageNumberNext;
+						// prepare for next send process
+						sendData = new byte[1024];
+						receiveData = new byte[1024];
 						packageNumberNext = packageNumber++;
-						break;
 					}
 				}
 				else
