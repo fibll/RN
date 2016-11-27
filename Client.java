@@ -110,8 +110,8 @@ class Client {
 							
 				// send
 				clientSocket.send(sendPacket);
-				System.out.println("Package sent");
-							
+				
+				
 				// receive
 				System.out.println("Package received");
 			    clientSocket.receive(receivePacket);

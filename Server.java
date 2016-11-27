@@ -12,46 +12,45 @@ class Server {
 	{		
 		if(argv.length == 1)
 		{
+			// variables
+			String startString = "start";
+			byte[] sendData = new byte[1024];
+			byte[] receiveData = new byte[1024];
+			ByteBuffer bufReceive;
+			ByteBuffer bufSend;
+			ByteBuffer buf;
+			
+			// start package
+			byte[] sessionNumber = new byte[2];
+			byte[] sessionNumberReceived = new byte[2];
+			
+			byte packageNumber;
+			byte packageNumberNext;
+			
+			byte[] start = startString.getBytes(StandardCharsets.US_ASCII);	// is always 5 byte
+			byte[] startReceived = new byte[5];
+			
+			byte[] fileLength = new byte[8];
+			byte[] fileNameLength = new byte[2];
+			byte[] fileName;
+			
+			byte[] crc = new byte[4];
+			byte[] sendPacketWithoutCRC;
+			
+			// open file output stream
+			//FileOutputStream fos = new FileOutputStream("outputFile", true);
+			
+			// connection
 			int port = Integer.parseInt(argv[0]);
 			InetAddress IPAddress;
-			System.out.println("");
 			
 			// Socket für Anfragen auf Port (chosen)
 			DatagramSocket serverSocket = new DatagramSocket(port); 
-
+			
+			// from now on it works with one client
 			while(true)
 			{
-				// variables
-				String startString = "start";
-				byte[] sendData = new byte[1024];
-				byte[] receiveData = new byte[1024];
-				ByteBuffer bufReceive;
-				ByteBuffer bufSend;
-				ByteBuffer buf;
-				
-				// start package
-				byte[] sessionNumber = new byte[2];
-				byte[] sessionNumberReceived = new byte[2];
-				
-				byte packageNumber;
-				byte packageNumberNext;
-				
-				byte[] start = startString.getBytes(StandardCharsets.US_ASCII);	// is always 5 byte
-				byte[] startReceived = new byte[5];
-				
-				byte[] fileLength = new byte[8];
-				byte[] fileNameLength = new byte[2];
-				byte[] fileName;
-				
-				byte[] crc = new byte[4];
-				byte[] sendPacketWithoutCRC;
-				
-				// open file output stream
-				//FileOutputStream fos = new FileOutputStream("outputFile", true);
-				
-				
-
-// client loop
+// client loop (timeout?)
 				// create DatagramPacket
 				DatagramPacket receivePacket =  new DatagramPacket(receiveData, receiveData.length);
 		        
@@ -66,12 +65,12 @@ class Server {
 				bufReceive.get(sessionNumberReceived);
 				packageNumber = bufReceive.get();
 				System.out.println("bytebuffer filled");
-
+				
 		        
+				// new session?
 				if(!Arrays.equals(sessionNumber, sessionNumberReceived))
 				{
 					// get from start to FileNameLength
-					// fill bytebuffer
 			        bufReceive.get(startReceived);
 			        bufReceive.get(fileLength);
 			        bufReceive.get(fileNameLength);
@@ -89,18 +88,14 @@ class Server {
 					
 						// save sessionNumber
 						sessionNumber = sessionNumberReceived;
-			
+
 						// get file name
 						buf = ByteBuffer.wrap(fileNameLength);
-/*??????*/				fileName = new byte[(int)buf.getShort()];
-						bufReceive.get(fileName);
-						
+						fileName = new byte[(int)buf.getShort()];
+						bufReceive.get(fileName);						
 						
 						// CRC
-						int bla = getCRC(receiveData, crc, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length);
-						putIntintoByteBuffer(crc, bla);
-						System.out.println(bla);
-												
+						putIntintoByteBuffer(crc, getCRC(receiveData, crc, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));			
 						
 						// set ip address and port right for the client
 						IPAddress = receivePacket.getAddress(); 
@@ -156,6 +151,14 @@ class Server {
 		else
 			System.out.println("Not the correct amount of arguments");
 	}
+	
+	
+	
+	
+	
+	
+	
+	
 	public static void putIntintoByteBuffer(byte[] bufInto, int integer)
 	{
 		ByteBuffer buf = ByteBuffer.wrap(bufInto);
