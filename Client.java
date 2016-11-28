@@ -54,9 +54,12 @@ class Client {
 			// send loop
 			for(int i = 0; i < 2; i++)
 			{
+				// create send packet
+				//DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port); 
+				
 				if(first)
 				{
-					// First sending process (startPackafile, ge)
+					// First sending process (startPackage)
 					createStartPackage(sendData, sessionNumber, packageNumber, file);
 
 			    	first = false;
@@ -64,26 +67,20 @@ class Client {
 				else
 				{
 					// continue sending process (dataPackage)
-					createDataPackage(sendData, sessionNumber, packageNumber);					
+					createDataPackage(sendData, sessionNumber, packageNumber);			
 				}
-							
+						
 				// send
+				sendPacket.setData(sendData);
 				clientSocket.send(sendPacket);
-				
-				
-				
-				// test
-				buf = ByteBuffer.wrap(sessionNumber);
-				System.out.println ("SN: " + buf.getShort());
-				
-				System.out.println ("PN: " + packageNumber);
-				
-				
+				System.out.println("Package sent");
 				
 				
 				// receive
-				System.out.println("Package received");
+				receivePacket.setData(receiveData);
 			    clientSocket.receive(receivePacket);
+				System.out.println("Package received");
+			    
 			    
 		        // read out the session- and PackageNumber and check if they are correct
 		        bufReceive = ByteBuffer.wrap(receiveData);

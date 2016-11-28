@@ -24,7 +24,8 @@ class Server {
 			byte[] sessionNumber = new byte[2];
 			byte[] sessionNumberReceived = new byte[2];
 			
-			byte packageNumber;
+			byte packageNumber = 0;
+			byte packageNumberReceived;
 			
 			byte[] start = startString.getBytes(StandardCharsets.US_ASCII);	// is always 5 byte
 			byte[] startReceived = new byte[5];
@@ -58,24 +59,28 @@ class Server {
 				System.out.println("Package received");
 		        
 		        // create byteBuffer to read parts of the received Package
-		        bufReceive = ByteBuffer.wrap(receiveData);
+		        bufReceive = ByteBuffer.wrap(receiveData);       
 		        
+				
 		        // fill bytebuffer
 				bufReceive.get(sessionNumberReceived);
-				packageNumber = bufReceive.get();
+/**/			packageNumberReceived = bufReceive.get();
 				System.out.println("bytebuffer filled");
 				
-				
-				// test
-				buf = ByteBuffer.wrap(sessionNumber);
-				System.out.println ("SN: " + buf.getShort());
-				
-				System.out.println ("PN: " + packageNumber);
-				
 		        
+				// test
+				System.out.println("PN: " + packageNumber);
+				System.out.println("PN: " + packageNumberReceived);
+				
 				// new session?
 				if(!Arrays.equals(sessionNumber, sessionNumberReceived))
 				{
+//					if(packageNumberReceived != packageNumber)
+//					{
+//						System.out.println("Package Number has to be 0 in the beginning!");
+//						break;
+//					}
+					
 					// get from start to FileNameLength
 			        bufReceive.get(startReceived);
 			        bufReceive.get(fileLength);
@@ -86,6 +91,7 @@ class Server {
 					{
 						// Cancel session
 						System.out.println("Failure, new sessionNumber but no start string");
+						break;
 					}
 					else
 					{
@@ -102,55 +108,46 @@ class Server {
 						
 						// CRC
 						putIntintoByteBuffer(crc, getCRC(receiveData, crc, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));			
-						
-						// set ip address and port right for the client
-						IPAddress = receivePacket.getAddress(); 
-						port = receivePacket.getPort();
-		  
-						// prepare ack
-						bufSend = ByteBuffer.wrap(sendData);
-						bufSend.put(sessionNumber);
-						bufSend.put(packageNumber);
-		        
-						// create send datagram
-						DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
-						
-						// send
-						serverSocket.send(sendPacket);
-						System.out.println("Package sent");
-												
-						
-						// prepare for next send process
-						sendData = new byte[1024];
-						receiveData = new byte[1024];
 					}
 				}
+//				else if(packageNumberReceived != packageNumber)
+//				{
+//					System.out.println("Missing Package!");
+///**/				break;
+//				}
 				else
 				{
 					// no new session
 					System.out.println("No new session!");
-					// get data out of receiveData
-					
-					// set ip address and port right for the client
-					IPAddress = receivePacket.getAddress(); 
-					port = receivePacket.getPort();
-					
-					// more ack
-					bufSend = ByteBuffer.wrap(sendData);
-					bufSend.put(sessionNumber);
-					bufSend.put(packageNumber);
-	        
-					// create send datagram
-					DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
-	  
-					// send
-					serverSocket.send(sendPacket);
-					System.out.println("Package sent");
-					
-					
-					// initialize packageNumberNext;
-					break;
 				}
+				packageNumber = packageNumberReceived;
+//				packageNumber++;
+				
+				// set ip address and port right for the client
+				IPAddress = receivePacket.getAddress(); 
+				port = receivePacket.getPort();
+				
+				
+				// prepare ack
+				bufSend = ByteBuffer.wrap(sendData);
+				bufSend.put(sessionNumber);
+				bufSend.put(packageNumber);
+			
+				
+				// create send datagram
+				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+  
+				// send
+				sendPacket.setData(sendData);
+				serverSocket.send(sendPacket);
+				System.out.println("Package sent");
+				
+				
+				// prepare for next send process
+				sendData = new byte[1024];
+				receiveData = new byte[1024];
+
+				
 // client loop end
 			}
 			// wait for next client
