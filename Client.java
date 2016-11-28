@@ -20,45 +20,22 @@ class Client {
 			String fileNameString = argv[2];
 			
 			// other
-			String startString = "start";
-			byte[] sendData = new byte[1024];
-			byte[] receiveData = new byte[1024];
-			ByteBuffer bufReceive;
-			ByteBuffer bufSend;
+			byte[] sessionNumber = new byte[2];
+			byte[] sessionNumberReceived = new byte[2];
+
+			byte packageNumber = 0;
+			byte packageNumberReceived = -1;
+
+/**/		byte[] sendData = new byte[1024];
+/**/		byte[] receiveData = new byte[1024];
+			
 			ByteBuffer buf;
+			ByteBuffer bufReceive;
 			boolean first = true;
 			
 			// file
 			File file = new File(fileNameString);
 			
-			// all the special byte arrays
-			byte[] sessionNumber = new byte[2];
-			byte[] sessionNumberReceived = new byte[2];
-			
-			byte packageNumber = 0;
-			byte packageNumberReceived = -1;
-			
-			byte[] start = startString.getBytes(StandardCharsets.US_ASCII);	// is always 5 byte
-			
-			byte[] fileLength = new byte[8];
-			byte[] fileNameLength = new byte[2];
-			byte[] fileName = fileNameString.getBytes(StandardCharsets.UTF_8); // is as long as expected  
-			
-			byte[] crc = new byte[4];
-			byte[] sendPacketWithoutCRC;
-			
-			// session number
-			new Random().nextBytes(sessionNumber);
-			
-			// file length
-			buf = ByteBuffer.wrap(fileLength);
-			buf.allocate(fileLength.length);
-		    buf.putLong(file.getTotalSpace());
-		    
-		    // file name length
-		    buf = ByteBuffer.wrap(fileNameLength);
-		    buf.allocate(fileNameLength.length);
-/*??????*/  buf.putShort((short)fileName.length);
 			
 			// connection stuff
 			System.out.println("Connect...");
@@ -73,53 +50,43 @@ class Client {
 			// create receive packet
 			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
 			
-// loop with condition: if boolean first = true, then startPacket, else Datapacket
+
+			// send loop
 			for(int i = 0; i < 2; i++)
 			{
 				if(first)
 				{
-					System.out.println("\n\nFirst Time");
-					// prepare start package
-					bufSend = ByteBuffer.wrap(sendData);
-					bufSend.put(sessionNumber);
-					bufSend.put(packageNumber);
-					bufSend.put(start);
-					bufSend.put(fileLength);
-					bufSend.put(fileNameLength);
-					bufSend.put(fileName);
-					
-					System.out.println("CRC check...");
+					// First sending process (startPackafile, ge)
+					createStartPackage(sendData, sessionNumber, packageNumber, file);
 
-					
-					// crc
-					int bla = getCRC(sendData, crc, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length);
-/*????????????*/	putIntintoByteBuffer(crc, bla);
-					System.out.println(bla);
-					
-					bufSend.put(crc);
-					System.out.println("..sendData contains values up to CRC32");
+			    	first = false;
 				}
 				else
 				{
-					System.out.println("\n\nSecond Time");
-					// prepare data package
-					bufSend = ByteBuffer.wrap(sendData);
-					bufSend.put(sessionNumber);
-					bufSend.put(packageNumber);
+					// continue sending process (dataPackage)
+					createDataPackage(sendData, sessionNumber, packageNumber);					
 				}
 							
 				// send
 				clientSocket.send(sendPacket);
 				
 				
+				
+				// test
+				buf = ByteBuffer.wrap(sessionNumber);
+				System.out.println ("SN: " + buf.getShort());
+				
+				System.out.println ("PN: " + packageNumber);
+				
+				
+				
+				
 				// receive
 				System.out.println("Package received");
 			    clientSocket.receive(receivePacket);
 			    
-		        // create byteBuffer to read parts of the received Package
+		        // read out the session- and PackageNumber and check if they are correct
 		        bufReceive = ByteBuffer.wrap(receiveData);
-		        
-		        // fill bytebuffer
 				bufReceive.get(sessionNumberReceived);
 				packageNumberReceived = bufReceive.get();
 				
@@ -128,22 +95,87 @@ class Client {
 				else
 					System.out.println("ACK stimmt nicht");
 			    
+			    
 				// prepare for next send process
 				sendData = new byte[1024];
 				receiveData = new byte[1024];
 			    packageNumber++;
-			    
-			    if(first)
-			    	first = false;
-
-			}
-			// loop end
+			}		    
 		    
-		    		    
 		    clientSocket.close();
 		}
 		else
 			System.out.println("Not the correct amount of arguments");
+	}
+
+	
+	
+	
+	
+	
+	
+	// Functions
+	/***********************************************************************************************************/
+	/***********************************************************************************************************/
+	/***********************************************************************************************************/
+	/***********************************************************************************************************/
+	/***********************************************************************************************************/
+	/***********************************************************************************************************/
+	
+	public static void createStartPackage(byte[] sendData, byte[] sessionNumber, byte packageNumber, File file)
+	{
+		byte[] start = "start".getBytes(StandardCharsets.US_ASCII);	// is always 5 byte
+		byte[] fileLength = new byte[8];
+		byte[] fileNameLength = new byte[2];
+		byte[] fileName = file.getName().getBytes(StandardCharsets.UTF_8); // is as long as expected  
+		byte[] crc = new byte[4];
+		byte[] sendPacketWithoutCRC;
+		
+		// session number
+		new Random().nextBytes(sessionNumber);
+		
+		// file length
+		ByteBuffer buf = ByteBuffer.wrap(fileLength);
+		buf.allocate(fileLength.length);
+	    buf.putLong(file.getTotalSpace());
+	    
+	    // file name length
+	    buf = ByteBuffer.wrap(fileNameLength);
+	    buf.allocate(fileNameLength.length);
+/**/	buf.putShort((short)fileName.length);
+
+
+		// prepare start package
+		buf = ByteBuffer.wrap(sendData);
+		buf.put(sessionNumber);
+		buf.put(packageNumber);
+		buf.put(start);
+		buf.put(fileLength);
+		buf.put(fileNameLength);
+		buf.put(fileName);
+
+		
+		// crc
+/**/	putIntintoByteBuffer(crc, getCRC(sendData, crc, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));
+		
+		buf.put(crc);
+		System.out.println("..sendData contains values up to CRC32");
+
+	}
+
+	public static void createDataPackage(byte[] sendData, byte[] sessionNumber, byte packageNumber)
+	{
+		// prepare data package
+		ByteBuffer buf = ByteBuffer.wrap(sendData);
+		buf.put(sessionNumber);
+		buf.put(packageNumber);
+	}
+	
+	
+	public static void putIntoByteBuffer(byte[] bufInto)
+	{
+		ByteBuffer buf = ByteBuffer.wrap(bufInto);
+		buf.put(bufInto);
 	}
 	
 	public static void putIntintoByteBuffer(byte[] bufInto, int integer)
