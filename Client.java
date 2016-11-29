@@ -79,15 +79,14 @@ class Client {
 				// receive
 				receivePacket.setData(receiveData);
 			    clientSocket.receive(receivePacket);
-				System.out.println("Package received");
-			    
+				System.out.println("Package received");		    
 			    
 		        // read out the session- and PackageNumber and check if they are correct
 		        bufReceive = ByteBuffer.wrap(receiveData);
 				bufReceive.get(sessionNumberReceived);
 				packageNumberReceived = bufReceive.get();
 				
-			    if(Arrays.equals(sessionNumber, sessionNumberReceived) && (packageNumber == packageNumberReceived))
+			    if(Arrays.equals(sessionNumber, sessionNumberReceived) && (packageNumber == (packageNumberReceived - 1)))
 					System.out.println("ACK stimmt überein");
 				else
 					System.out.println("ACK stimmt nicht");

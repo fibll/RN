@@ -65,12 +65,7 @@ class Server {
 		        // fill bytebuffer
 				bufReceive.get(sessionNumberReceived);
 /**/			packageNumberReceived = bufReceive.get();
-				System.out.println("bytebuffer filled");
-				
-		        
-				// test
-				System.out.println("PN: " + packageNumber);
-				System.out.println("PN: " + packageNumberReceived);
+
 				
 				// new session?
 				if(!Arrays.equals(sessionNumber, sessionNumberReceived))
@@ -121,7 +116,7 @@ class Server {
 					System.out.println("No new session!");
 				}
 				packageNumber = packageNumberReceived;
-//				packageNumber++;
+				packageNumber++;
 				
 				// set ip address and port right for the client
 				IPAddress = receivePacket.getAddress(); 
