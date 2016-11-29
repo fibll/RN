@@ -86,10 +86,10 @@ class Client {
 				bufReceive.get(sessionNumberReceived);
 				packageNumberReceived = bufReceive.get();
 				
-			    if(Arrays.equals(sessionNumber, sessionNumberReceived) && (packageNumber == (packageNumberReceived - 1)))
-					System.out.println("ACK stimmt überein");
-				else
-					System.out.println("ACK stimmt nicht");
+			    if(!Arrays.equals(sessionNumber, sessionNumberReceived))
+					System.out.println("SN is incorrect");
+				else if (packageNumber != (packageNumberReceived - 1))
+					System.out.println("PN is incorrect");
 			    
 			    
 				// prepare for next send process
