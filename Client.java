@@ -40,6 +40,8 @@ class Client {
 			// connection stuff
 			System.out.println("Connect...");
 			DatagramSocket clientSocket = new DatagramSocket();
+			clientSocket.setSoTimeout(1000);
+
 			
 			// set ip address
 			InetAddress IPAddress = InetAddress.getByName(host);
@@ -52,10 +54,9 @@ class Client {
 			
 
 			// send loop
-			for(int i = 0; i < 2; i++)
+			for(int i = 0; i < 6; i++)
 			{
-				// create send packet
-				//DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port); 
+				System.out.println("PN: " + packageNumber);
 				
 				if(first)
 				{
@@ -77,10 +78,18 @@ class Client {
 				
 				
 				// receive
-				receivePacket.setData(receiveData);
-			    clientSocket.receive(receivePacket);
-				System.out.println("Package received");		    
-			    
+				try
+				{
+					receivePacket.setData(receiveData);
+					clientSocket.receive(receivePacket);
+					System.out.println("Package received");
+				}
+				catch (SocketTimeoutException e)
+				{
+					System.out.println("Timeout occured!");
+					break;
+				}
+					
 		        // read out the session- and PackageNumber and check if they are correct
 		        bufReceive = ByteBuffer.wrap(receiveData);
 				bufReceive.get(sessionNumberReceived);
@@ -88,14 +97,19 @@ class Client {
 				
 			    if(!Arrays.equals(sessionNumber, sessionNumberReceived))
 					System.out.println("SN is incorrect");
-				else if (packageNumber != (packageNumberReceived - 1))
+				if (packageNumber != (packageNumberReceived))
 					System.out.println("PN is incorrect");
 			    
 			    
 				// prepare for next send process
 				sendData = new byte[1024];
 				receiveData = new byte[1024];
-			    packageNumber++;
+			    
+				// flip packageNumber
+				if(packageNumber == 0)
+					packageNumber = 1;
+				else
+					packageNumber = 0;
 			}		    
 		    
 		    clientSocket.close();

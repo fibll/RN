@@ -59,22 +59,18 @@ class Server {
 				System.out.println("Package received");
 		        
 		        // create byteBuffer to read parts of the received Package
-		        bufReceive = ByteBuffer.wrap(receiveData);       
-		        
-				
-		        // fill bytebuffer
+		        bufReceive = ByteBuffer.wrap(receiveData); 
 				bufReceive.get(sessionNumberReceived);
 /**/			packageNumberReceived = bufReceive.get();
 
-				
 				// new session?
 				if(!Arrays.equals(sessionNumber, sessionNumberReceived))
 				{
-//					if(packageNumberReceived != packageNumber)
-//					{
-//						System.out.println("Package Number has to be 0 in the beginning!");
-//						break;
-//					}
+					if(packageNumberReceived != packageNumber)
+					{
+						System.out.println("Package Number has to be 0 in the beginning!");
+						break;
+					}
 					
 					// get from start to FileNameLength
 			        bufReceive.get(startReceived);
@@ -105,18 +101,13 @@ class Server {
 						putIntintoByteBuffer(crc, getCRC(receiveData, crc, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));			
 					}
 				}
-//				else if(packageNumberReceived != packageNumber)
-//				{
-//					System.out.println("Missing Package!");
-///**/				break;
-//				}
-				else
+				else if(packageNumberReceived == packageNumber)
 				{
-					// no new session
-					System.out.println("No new session!");
+					System.out.println("Wrong Package Number!");
+/**/				break;
 				}
+				
 				packageNumber = packageNumberReceived;
-				packageNumber++;
 				
 				// set ip address and port right for the client
 				IPAddress = receivePacket.getAddress(); 
@@ -141,8 +132,8 @@ class Server {
 				// prepare for next send process
 				sendData = new byte[1024];
 				receiveData = new byte[1024];
+				flip(packageNumber);
 
-				
 // client loop end
 			}
 			// wait for next client
@@ -163,6 +154,15 @@ class Server {
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
+	
+	public static void flip(byte var)
+	{
+		// flip packageNumber
+		if(var == 0)
+			var = 1;
+		else
+			var = 0;
+	}
 	
 	public static void printShortB(byte[] intBuffer)
 	{
