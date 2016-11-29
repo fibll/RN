@@ -32,6 +32,7 @@ class Client {
 			
 			// file
 			File file = new File(fileNameString);
+			FileInputStream fis = new FileInputStream(file);
 			
 			
 			// connection stuff
@@ -70,7 +71,7 @@ class Client {
 				else
 				{
 					// continue sending process (dataPackage)
-					createDataPackage(sendData, sessionNumber, packageNumber);		
+					createDataPackage(sendData, sessionNumber, packageNumber, file);		
 				}
 				
 				// send
@@ -181,12 +182,17 @@ class Client {
 
 	}
 
-	public static void createDataPackage(byte[] sendData, byte[] sessionNumber, byte packageNumber)
+	public static void createDataPackage(byte[] sendData, byte[] sessionNumber, byte packageNumber, FileInputStream fis)
 	{
+		byte[] data = new byte[];
+		
 		// prepare data package
 		ByteBuffer buf = ByteBuffer.wrap(sendData);
 		buf.put(sessionNumber);
 		buf.put(packageNumber);
+		
+		// get data out of file
+		fis.read();
 	}
 	
 	
