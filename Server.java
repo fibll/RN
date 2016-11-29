@@ -13,8 +13,6 @@ class Server {
 		{
 			// variables
 			String startString = "start";
-/**/		byte[] sendData = new byte[1024];
-/**/		byte[] receiveData = new byte[1024];
 			ByteBuffer bufReceive;
 			ByteBuffer bufSend;
 			ByteBuffer buf;
@@ -44,7 +42,11 @@ class Server {
 			InetAddress IPAddress;
 			
 			// Socket für Anfragen auf Port (chosen)
-			DatagramSocket serverSocket = new DatagramSocket(port); 
+			DatagramSocket serverSocket = new DatagramSocket(port);
+			
+			// send and receive Buffer
+/**/		byte[] sendData = new byte[65536 - 29];
+/**/		byte[] receiveData = new byte[65536 - 29];
 			
 			// from now on it works with one client
 			while(true)

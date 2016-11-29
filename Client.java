@@ -25,9 +25,6 @@ class Client {
 
 			byte packageNumber = 0;
 			byte packageNumberReceived = -1;
-
-/**/		byte[] sendData = new byte[1024];
-/**/		byte[] receiveData = new byte[1024];
 			
 			ByteBuffer buf;
 			ByteBuffer bufReceive;
@@ -41,13 +38,19 @@ class Client {
 			System.out.println("Connect...");
 			DatagramSocket clientSocket = new DatagramSocket();
 			clientSocket.setSoTimeout(1000);
+			
 
+			// send and receive Buffer
+			System.out.println(clientSocket.getReceiveBufferSize());
+/**/		byte[] sendData = new byte[65536 - 29];
+/**/		byte[] receiveData = new byte[65536 - 29];
+			
 			
 			// set ip address
 			InetAddress IPAddress = InetAddress.getByName(host);
 			
 			// create send packet
-			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port); 
+			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
 			
 			// create receive packet
 			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
@@ -69,8 +72,6 @@ class Client {
 					// continue sending process (dataPackage)
 					createDataPackage(sendData, sessionNumber, packageNumber);		
 				}
-				
-				System.out.println("SN: " + sessionNumber[0] + sessionNumber[1]);
 				
 				// send
 				sendPacket.setData(sendData);
