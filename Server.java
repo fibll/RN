@@ -6,7 +6,6 @@ import java.util.Arrays;
 import java.util.zip.CRC32;
 import java.io.FileInputStream;
 
-
 class Server {
 	public static void main(String argv[]) throws Exception
 	{		
@@ -50,7 +49,6 @@ class Server {
 			// from now on it works with one client
 			while(true)
 			{
-// client loop (timeout?)
 				// create DatagramPacket
 				DatagramPacket receivePacket =  new DatagramPacket(receiveData, receiveData.length);
 		        
@@ -58,15 +56,17 @@ class Server {
 				serverSocket.receive(receivePacket);
 				System.out.println("Package received");
 		        
+				
 		        // create byteBuffer to read parts of the received Package
 		        bufReceive = ByteBuffer.wrap(receiveData); 
 				bufReceive.get(sessionNumberReceived);
-/**/			packageNumberReceived = bufReceive.get();
+				packageNumberReceived = bufReceive.get();
+				
 
 				// new session?
 				if(!Arrays.equals(sessionNumber, sessionNumberReceived))
 				{
-					if(packageNumberReceived != packageNumber)
+					if(packageNumberReceived != 0)
 					{
 						System.out.println("Package Number has to be 0 in the beginning!");
 						break;
@@ -87,21 +87,21 @@ class Server {
 					else
 					{
 						// new session started
-						System.out.println("New session");
+						System.out.println("\n\n\nNew session");
 					
 						// save sessionNumber
-						sessionNumber = sessionNumberReceived;
+						sessionNumber = sessionNumberReceived.clone();
 
 						// get file name
 						buf = ByteBuffer.wrap(fileNameLength);
 						fileName = new byte[(int)buf.getShort()];
-						bufReceive.get(fileName);						
+						bufReceive.get(fileName);	
 						
 						// CRC
 						putIntintoByteBuffer(crc, getCRC(receiveData, crc, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));			
 					}
 				}
-				else if(packageNumberReceived == packageNumber)
+				else if(packageNumberReceived != packageNumber)
 				{
 					System.out.println("Wrong Package Number!");
 /**/				break;
@@ -132,9 +132,8 @@ class Server {
 				// prepare for next send process
 				sendData = new byte[1024];
 				receiveData = new byte[1024];
-				flip(packageNumber);
-
-// client loop end
+				
+				packageNumber = flip(packageNumber);
 			}
 			// wait for next client
 		}
@@ -155,13 +154,13 @@ class Server {
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
 	
-	public static void flip(byte var)
+	public static byte flip(byte var)
 	{
 		// flip packageNumber
 		if(var == 0)
-			var = 1;
+			return 1;
 		else
-			var = 0;
+			return 0;
 	}
 	
 	public static void printShortB(byte[] intBuffer)

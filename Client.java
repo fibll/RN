@@ -54,10 +54,9 @@ class Client {
 			
 
 			// send loop
-			for(int i = 0; i < 6; i++)
+//			while(fis.available() > 0)
+			for(int i = 0; i < 5; i++)
 			{
-				System.out.println("PN: " + packageNumber);
-				
 				if(first)
 				{
 					// First sending process (startPackage)
@@ -68,9 +67,11 @@ class Client {
 				else
 				{
 					// continue sending process (dataPackage)
-					createDataPackage(sendData, sessionNumber, packageNumber);			
+					createDataPackage(sendData, sessionNumber, packageNumber);		
 				}
-						
+				
+				System.out.println("SN: " + sessionNumber[0] + sessionNumber[1]);
+				
 				// send
 				sendPacket.setData(sendData);
 				clientSocket.send(sendPacket);
@@ -106,10 +107,7 @@ class Client {
 				receiveData = new byte[1024];
 			    
 				// flip packageNumber
-				if(packageNumber == 0)
-					packageNumber = 1;
-				else
-					packageNumber = 0;
+				packageNumber = flip(packageNumber);
 			}		    
 		    
 		    clientSocket.close();
@@ -131,6 +129,15 @@ class Client {
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
+	public static byte flip(byte var)
+	{
+		// flip packageNumber
+		if(var == 0)
+			return 1;
+		else
+			return 0;
+	}
+	
 	
 	public static void createStartPackage(byte[] sendData, byte[] sessionNumber, byte packageNumber, File file)
 	{
