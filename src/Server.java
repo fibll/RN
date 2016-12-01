@@ -7,6 +7,9 @@ import java.util.zip.CRC32;
 import java.io.FileInputStream;
 
 class Server {
+	
+	private static final int PAKETSIZE = 65536 - 29;
+	
 	public static void main(String argv[]) throws Exception
 	{		
 		if(argv.length == 1)
@@ -28,14 +31,22 @@ class Server {
 			byte[] startReceived = new byte[5];
 			
 			byte[] fileLength = new byte[8];
+			long fileLengthInt = 0;
+			
 			byte[] fileNameLength = new byte[2];
 			byte[] fileName;
+			String fileNameString = "fail";
 			
 			byte[] crc = new byte[4];
 			byte[] sendPacketWithoutCRC;
+			CRC32 crcData = new CRC32();
+			
+			// file stuff
+			byte[] fileData = new byte[PAKETSIZE - (sessionNumber.length + 1)];
+			int fileDataCounter = 0;
 			
 			// open file output stream
-			//FileOutputStream fos = new FileOutputStream("outputFile", true);
+			FileOutputStream fos = new FileOutputStream(fileNameString, true);
 			
 			// connection
 			int port = Integer.parseInt(argv[0]);
@@ -45,8 +56,8 @@ class Server {
 			DatagramSocket serverSocket = new DatagramSocket(port);
 			
 			// send and receive Buffer
-/**/		byte[] sendData = new byte[65536 - 29];
-/**/		byte[] receiveData = new byte[65536 - 29];
+/**/		byte[] sendData = new byte[PAKETSIZE];
+/**/		byte[] receiveData = new byte[PAKETSIZE];
 			
 			// from now on it works with one client
 			while(true)
@@ -78,6 +89,7 @@ class Server {
 			        bufReceive.get(startReceived);
 			        bufReceive.get(fileLength);
 			        bufReceive.get(fileNameLength);
+			        
 					
 			        // was start text correctly sent?
 					if(!Arrays.equals(start, startReceived))
@@ -100,13 +112,55 @@ class Server {
 						bufReceive.get(fileName);	
 						
 						// CRC
-						putIntintoByteBuffer(crc, getCRC(receiveData, crc, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));			
+						putIntintoByteBuffer(crc, getCRC(receiveData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));
+						
+						// get fileLengthInt
+						buf = ByteBuffer.wrap(fileLength);
+						fileLengthInt = buf.getLong();
+						
+						// prepare fileDataCounter and CRC32
+						fileDataCounter = (int)fileLengthInt;
+						crcData.reset();
+						
+						// get fileNameString
+/**/					//fileNameString = new String(fileName);
 					}
 				}
 				else if(packageNumberReceived != packageNumber)
 				{
 					System.out.println("Wrong Package Number!");
 /**/				break;
+				}
+				else 
+				{					
+					if(fileDataCounter > 0)
+					{						
+						if(fileDataCounter > (PAKETSIZE - (sessionNumber.length + 1)))
+							fileData = new byte[(PAKETSIZE - (sessionNumber.length + 1))];
+						else
+						{
+							System.out.println("Last write!");
+							fileData = new byte[fileDataCounter];
+						}
+							
+						// read out the fileData and update crcData
+						bufReceive.get(fileData);
+						crcData.update(fileData);
+						System.out.println("update CRC: " + (int)crcData.getValue());
+						
+						// write into file and add amount of written data to fileDataCounter
+						fos.write(fileData);						
+						fileDataCounter -= (PAKETSIZE - (sessionNumber.length + 1));
+					}
+					else
+					{
+						// get last Package with crc of client
+						
+						// end it
+						System.out.println("CRC: " + (int)crcData.getValue());
+						System.out.println("File fully transfered!");
+						break;
+					}
 				}
 				
 				packageNumber = packageNumberReceived;
@@ -132,8 +186,8 @@ class Server {
 				
 				
 				// prepare for next send process
-				sendData = new byte[1024];
-				receiveData = new byte[1024];
+				sendData = new byte[PAKETSIZE];
+				receiveData = new byte[PAKETSIZE];
 				
 				packageNumber = flip(packageNumber);
 			}
@@ -179,7 +233,7 @@ class Server {
 		buf.putInt(integer);
 	}
 	
-	public static int getCRC(byte[] receiveData, byte[] crc, int dataLength)
+	public static int getCRC(byte[] receiveData, int dataLength)
 	{
 		// prepare CRC Array
 		byte[] sendPacketWithoutCRC = new byte[dataLength];

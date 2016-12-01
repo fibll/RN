@@ -10,6 +10,12 @@ import java.util.Arrays;
 import java.util.zip.CRC32;
 
 class Client {
+	private static final int PAKETSIZE = 65536 - 29;
+	private static byte[] sessionNumber = new byte[2];
+	private static byte packageNumber = 0;
+	
+	private static CRC32 crcData = new CRC32();
+	
 	public static void main( String argv[]) throws Exception
 	{
 		if(argv.length == 3)
@@ -19,11 +25,8 @@ class Client {
 			int port = Integer.parseInt(argv[1]);
 			String fileNameString = argv[2];
 			
-			// other
-			byte[] sessionNumber = new byte[2];
+			// received variables
 			byte[] sessionNumberReceived = new byte[2];
-
-			byte packageNumber = 0;
 			byte packageNumberReceived = -1;
 			
 			ByteBuffer buf;
@@ -33,6 +36,7 @@ class Client {
 			// file
 			File file = new File(fileNameString);
 			FileInputStream fis = new FileInputStream(file);
+//			int fileDataCounter = 0;
 			
 			
 			// connection stuff
@@ -42,9 +46,8 @@ class Client {
 			
 
 			// send and receive Buffer
-			System.out.println(clientSocket.getReceiveBufferSize());
-/**/		byte[] sendData = new byte[65536 - 29];
-/**/		byte[] receiveData = new byte[65536 - 29];
+			byte[] sendData = new byte[PAKETSIZE];
+			byte[] receiveData = new byte[PAKETSIZE];
 			
 			
 			// set ip address
@@ -58,20 +61,19 @@ class Client {
 			
 
 			// send loop
-//			while(fis.available() > 0)
-			for(int i = 0; i < 5; i++)
+			while(fis.available() > 0)
 			{
 				if(first)
 				{
 					// First sending process (startPackage)
-					createStartPackage(sendData, sessionNumber, packageNumber, file);
+					createStartPackage(sendData, file);
 
 			    	first = false;
 				}
 				else
 				{
 					// continue sending process (dataPackage)
-					createDataPackage(sendData, sessionNumber, packageNumber, fis);		
+					createDataPackage(sendData, fis, crcData);
 				}
 				
 				// send
@@ -105,13 +107,46 @@ class Client {
 			    
 			    
 				// prepare for next send process
-				sendData = new byte[1024];
-				receiveData = new byte[1024];
+				sendData = new byte[PAKETSIZE];
+				receiveData = new byte[PAKETSIZE];
 			    
 				// flip packageNumber
 				packageNumber = flip(packageNumber);
-			}		    
-		    
+			}
+			
+			// last paket
+/**/		System.out.println("Done with the file, now follows the crc");
+
+			createLastDataPackage(sendData, crcData);
+
+			// send
+			sendPacket.setData(sendData);
+			clientSocket.send(sendPacket);
+			System.out.println("Package sent");
+			
+			
+			// receive
+			try
+			{
+				receivePacket.setData(receiveData);
+				clientSocket.receive(receivePacket);
+				System.out.println("Package received");
+			}
+			catch (SocketTimeoutException e)
+			{
+				System.out.println("Timeout occured!");
+			}
+				
+	        // read out the session- and PackageNumber and check if they are correct
+	        bufReceive = ByteBuffer.wrap(receiveData);
+			bufReceive.get(sessionNumberReceived);
+			packageNumberReceived = bufReceive.get();
+			
+		    if(!Arrays.equals(sessionNumber, sessionNumberReceived))
+				System.out.println("SN is incorrect");
+			if (packageNumber != (packageNumberReceived))
+				System.out.println("PN is incorrect");
+
 		    clientSocket.close();
 		}
 		else
@@ -141,7 +176,7 @@ class Client {
 	}
 	
 	
-	public static void createStartPackage(byte[] sendData, byte[] sessionNumber, byte packageNumber, File file)
+	public static void createStartPackage(byte[] sendData, File file)
 	{
 		byte[] start = "start".getBytes(StandardCharsets.US_ASCII);	// is always 5 byte
 		byte[] fileLength = new byte[8];
@@ -156,7 +191,8 @@ class Client {
 		// file length
 		ByteBuffer buf = ByteBuffer.wrap(fileLength);
 		buf.allocate(fileLength.length);
-	    buf.putLong(file.getTotalSpace());
+	    buf.putLong(file.length());
+	    
 	    
 	    // file name length
 	    buf = ByteBuffer.wrap(fileNameLength);
@@ -175,24 +211,53 @@ class Client {
 
 		
 		// crc
-/**/	putIntintoByteBuffer(crc, getCRC(sendData, crc, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));
+/**/	putIntintoByteBuffer(crc, getCRC(sendData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));
 		
 		buf.put(crc);
 		System.out.println("..sendData contains values up to CRC32");
 
 	}
 
-	public static void createDataPackage(byte[] sendData, byte[] sessionNumber, byte packageNumber, FileInputStream fis)
-	{
-//		byte[] data = new byte[];
-		
+	public static void createDataPackage(byte[] sendData, FileInputStream fis, CRC32 crcData) throws IOException
+	{	
 		// prepare data package
 		ByteBuffer buf = ByteBuffer.wrap(sendData);
 		buf.put(sessionNumber);
 		buf.put(packageNumber);
 		
 		// get data out of file
-//		fis.read();
+		byte[] data;
+		
+		if(fis.available() > PAKETSIZE - (sessionNumber.length + 1))
+			data = new byte[PAKETSIZE - (sessionNumber.length + 1)];
+		else 
+			data = new byte[fis.available()];
+		
+		fis.read(data);
+		
+		// add fileData to sendData
+		buf.put(data);
+		
+		// get new data in crcData
+		crcData.update(data);
+//		System.out.println("CRC: " + (int)crcData.getValue());
+		
+	}
+	
+	public static void createLastDataPackage(byte[] sendData, CRC32 crcData)
+	{	
+		// prepare data package
+		ByteBuffer buf = ByteBuffer.wrap(sendData);
+		buf.put(sessionNumber);
+		buf.put(packageNumber);
+		
+		// add fileData to sendData
+		byte[] crc = new byte[4];
+			
+		System.out.println("CRC: " + (int)crcData.getValue());
+		
+/**/	putIntintoByteBuffer(crc, (int)crcData.getValue());
+		buf.put(crc);
 	}
 	
 	
@@ -209,17 +274,17 @@ class Client {
 		buf.putInt(integer);
 	}
 	
-	public static int getCRC(byte[] receiveData, byte[] crc, int dataLength)
+	public static int getCRC(byte[] src, int dataLength)
 	{
 		// prepare CRC Array
 		byte[] sendPacketWithoutCRC = new byte[dataLength];
 		ByteBuffer buf = ByteBuffer.wrap(sendPacketWithoutCRC);
-		buf.put(receiveData, 0, sendPacketWithoutCRC.length);
+		buf.put(src, 0, sendPacketWithoutCRC.length);
 		
 		// CRC
-		CRC32 crcCheck = new CRC32();
-		crcCheck.update(sendPacketWithoutCRC);
-		return (int)crcCheck.getValue();
+		CRC32 crc = new CRC32();
+		crc.update(sendPacketWithoutCRC);
+		return (int)crc.getValue();
 	}
 }
 
