@@ -18,8 +18,6 @@ class Server {
 		{
 			// variables
 			String startString = "Start";
-			ByteBuffer bufReceive;
-			ByteBuffer bufSend;
 			ByteBuffer buf;
 			
 			// start package
@@ -40,11 +38,12 @@ class Server {
 			String fileNameString = "fail";
 			
 			byte[] crc = new byte[4];
-			byte[] sendPacketWithoutCRC;
+			byte[] crcReceived = new byte[4];
 			CRC32 crcData = new CRC32();
 			
-			// define ack
-			OwnPackage ack = new OwnPackage(1, "bla", sessionNumber, packageNumber, PAKETSIZE);
+			// define packages
+			OwnPackage receive = new OwnPackage(PAKETSIZE);
+			OwnPackage ack = new OwnPackage(PAKETSIZE);
 			
 			
 			// file stuff
@@ -75,17 +74,21 @@ class Server {
 			// from now on it works with one client
 			while(true)
 			{
-				// receive
+				// receive				
 				receivePacket.setData(receiveData);
 				serverSocket.receive(receivePacket);
+				receive.setData(receiveData);
 				System.out.println("Package received");
 		        
+				sessionNumberReceived = receive.getNextData(sessionNumber.length);
+				packageNumberReceived = receive.getNextData();				
 				
+				/*
 		        // create byteBuffer to read parts of the received Package
 		        bufReceive = ByteBuffer.wrap(receiveData); 
 				bufReceive.get(sessionNumberReceived);
 				packageNumberReceived = bufReceive.get();
-				
+				*/
 
 				// new session?
 				if(!Arrays.equals(sessionNumber, sessionNumberReceived))
@@ -96,11 +99,16 @@ class Server {
 						break;
 					}
 					
+					startReceived	 = receive.getNextData(startReceived.length);
+					fileLength		 = receive.getNextData(fileLength.length);
+					fileNameLength	 = receive.getNextData(fileNameLength.length);
+					
+					/*
 					// get from start to FileNameLength
 			        bufReceive.get(startReceived);
 			        bufReceive.get(fileLength);
 			        bufReceive.get(fileNameLength);
-			        
+			        */
 					
 			        // was start text correctly sent?
 					if(!Arrays.equals(start, startReceived))
@@ -120,10 +128,19 @@ class Server {
 						// get file name
 						buf = ByteBuffer.wrap(fileNameLength);
 						fileName = new byte[(int)buf.getShort()];
-						bufReceive.get(fileName);	
+						
+						fileName = receive.getNextData(fileName.length);
 						
 						// CRC
 						putIntintoByteBuffer(crc, getCRC(receiveData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));
+						
+						// get CRC and check if it is the same
+						crcReceived = receive.getNextData(crcReceived.length);
+						
+						if(!Arrays.equals(crc, crcReceived))
+							System.out.println("CRC not equal");
+						
+						
 						
 						// get fileLengthInt
 						buf = ByteBuffer.wrap(fileLength);
@@ -155,12 +172,12 @@ class Server {
 						}
 							
 						// read out the fileData and update crcData
-						bufReceive.get(fileData);
+						fileData = receive.getNextData(fileData.length);
+//						bufReceive.get(fileData);
 						crcData.update(fileData);
-						//
 						
 						// write into file and add amount of written data to fileDataCounter
-						fos.write(fileData);						
+						fos.write(fileData);
 						fileDataCounter -= (PAKETSIZE - (sessionNumber.length + 1));
 					}
 					else
@@ -206,7 +223,10 @@ class Server {
 				
 				packageNumber = flip(packageNumber);
 			}
+			fos.close();
 			// wait for next client
+			// another while loop is needed
+			serverSocket.close();
 		}
 		else
 			System.out.println("Not the correct amount of arguments");

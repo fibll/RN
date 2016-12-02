@@ -118,7 +118,8 @@ class Client {
 /**/		System.out.println("Done with the file, now follows the crc");
 
 			createLastDataPackage(sendData, crcData);
-
+			
+			
 			// send
 			sendPacket.setData(sendData);
 			clientSocket.send(sendPacket);
@@ -215,7 +216,37 @@ class Client {
 		
 		buf.put(crc);
 		System.out.println("..sendData contains values up to CRC32");
-
+		
+		// print sendData
+		printByteArray(sessionNumber);
+		printByteArray(packageNumber);
+		printByteArray(start);
+		printByteArray(fileLength);
+		printByteArray(fileNameLength);
+		printByteArray(fileName);
+		System.out.println();
+		
+	}
+	
+	public static void printByteArray(byte[] array)
+	{
+		System.out.println();
+		
+		for(int i = 0; i < array.length; i++)
+		{
+			System.out.print(array[i] + " ");
+		}
+		
+		System.out.println();
+	}
+	
+	public static void printByteArray(byte array)
+	{
+		System.out.println();
+		
+		System.out.print(array);
+		
+		System.out.println();
 	}
 
 	public static void createDataPackage(byte[] sendData, FileInputStream fis, CRC32 crcData) throws IOException
