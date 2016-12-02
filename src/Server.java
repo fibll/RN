@@ -6,16 +6,18 @@ import java.util.Arrays;
 import java.util.zip.CRC32;
 import java.io.FileInputStream;
 
+import beleg.OwnPackage;
+
 class Server {
 	
-	private static final int PAKETSIZE = 65536 - 29;
+	private static final int PAKETSIZE = 1500; //65536 - 29;
 	
 	public static void main(String argv[]) throws Exception
 	{		
 		if(argv.length == 1)
 		{
 			// variables
-			String startString = "start";
+			String startString = "Start";
 			ByteBuffer bufReceive;
 			ByteBuffer bufSend;
 			ByteBuffer buf;
@@ -41,6 +43,10 @@ class Server {
 			byte[] sendPacketWithoutCRC;
 			CRC32 crcData = new CRC32();
 			
+			// define ack
+			OwnPackage ack = new OwnPackage(1, "bla", sessionNumber, packageNumber, PAKETSIZE);
+			
+			
 			// file stuff
 			byte[] fileData = new byte[PAKETSIZE - (sessionNumber.length + 1)];
 			int fileDataCounter = 0;
@@ -58,14 +64,19 @@ class Server {
 			// send and receive Buffer
 /**/		byte[] sendData = new byte[PAKETSIZE];
 /**/		byte[] receiveData = new byte[PAKETSIZE];
+
+
+			// create receive DatagramPacket
+			DatagramPacket receivePacket =  new DatagramPacket(receiveData, receiveData.length);
 			
+			// create send DatagramPacket
+			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length);
+
 			// from now on it works with one client
 			while(true)
 			{
-				// create DatagramPacket
-				DatagramPacket receivePacket =  new DatagramPacket(receiveData, receiveData.length);
-		        
 				// receive
+				receivePacket.setData(receiveData);
 				serverSocket.receive(receivePacket);
 				System.out.println("Package received");
 		        
@@ -146,7 +157,7 @@ class Server {
 						// read out the fileData and update crcData
 						bufReceive.get(fileData);
 						crcData.update(fileData);
-						System.out.println("update CRC: " + (int)crcData.getValue());
+						//
 						
 						// write into file and add amount of written data to fileDataCounter
 						fos.write(fileData);						
@@ -171,15 +182,19 @@ class Server {
 				
 				
 				// prepare ack
-				bufSend = ByteBuffer.wrap(sendData);
-				bufSend.put(sessionNumber);
-				bufSend.put(packageNumber);
-			
+				ack = new OwnPackage(PAKETSIZE);
+				ack.catData(sessionNumber);
+				ack.catData(packageNumber);
+				sendData = ack.getData();
 				
-				// create send datagram
-				DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+				//bufSend = ByteBuffer.wrap(sendData);
+				//bufSend.put(sessionNumber);
+				//bufSend.put(packageNumber);
+
   
 				// send
+				sendPacket.setAddress(IPAddress);
+				sendPacket.setPort(port);
 				sendPacket.setData(sendData);
 				serverSocket.send(sendPacket);
 				System.out.println("Package sent");

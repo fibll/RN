@@ -10,7 +10,7 @@ import java.util.Arrays;
 import java.util.zip.CRC32;
 
 class Client {
-	private static final int PAKETSIZE = 65536 - 29;
+	private static final int PAKETSIZE = 1500; //65536 - 29;
 	private static byte[] sessionNumber = new byte[2];
 	private static byte packageNumber = 0;
 	
@@ -104,7 +104,7 @@ class Client {
 					System.out.println("SN is incorrect");
 				if (packageNumber != (packageNumberReceived))
 					System.out.println("PN is incorrect");
-			    
+/**/		    	// what to do?, send package again
 			    
 				// prepare for next send process
 				sendData = new byte[PAKETSIZE];
@@ -178,7 +178,7 @@ class Client {
 	
 	public static void createStartPackage(byte[] sendData, File file)
 	{
-		byte[] start = "start".getBytes(StandardCharsets.US_ASCII);	// is always 5 byte
+		byte[] start = "Start".getBytes(StandardCharsets.US_ASCII);	// is always 5 byte
 		byte[] fileLength = new byte[8];
 		byte[] fileNameLength = new byte[2];
 		byte[] fileName = file.getName().getBytes(StandardCharsets.UTF_8); // is as long as expected  
