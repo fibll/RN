@@ -9,10 +9,17 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.zip.CRC32;
 
+import beleg.StartPackage;
+
 class Client {
 	private static final int PAKETSIZE = 1500; //65536 - 29;
 	private static byte[] sessionNumber = new byte[2];
 	private static byte packageNumber = 0;
+	
+	// received variables
+	private	static byte[] sessionNumberReceived = new byte[2];
+	private static byte packageNumberReceived = -1;
+	
 	
 	private static CRC32 crcData = new CRC32();
 	
@@ -24,10 +31,6 @@ class Client {
 			String host = argv[0];
 			int port = Integer.parseInt(argv[1]);
 			String fileNameString = argv[2];
-			
-			// received variables
-			byte[] sessionNumberReceived = new byte[2];
-			byte packageNumberReceived = -1;
 			
 			ByteBuffer buf;
 			ByteBuffer bufReceive;
@@ -96,15 +99,8 @@ class Client {
 				}
 					
 		        // read out the session- and PackageNumber and check if they are correct
-		        bufReceive = ByteBuffer.wrap(receiveData);
-				bufReceive.get(sessionNumberReceived);
-				packageNumberReceived = bufReceive.get();
-				
-			    if(!Arrays.equals(sessionNumber, sessionNumberReceived))
-					System.out.println("SN is incorrect");
-				if (packageNumber != (packageNumberReceived))
-					System.out.println("PN is incorrect");
-/**/		    	// what to do?, send package again
+				checkSNandPN(receiveData);
+/**/		    // what to do?, send package again
 			    
 				// prepare for next send process
 				sendData = new byte[PAKETSIZE];
@@ -113,6 +109,14 @@ class Client {
 				// flip packageNumber
 				packageNumber = flip(packageNumber);
 			}
+			
+			
+			
+			
+			
+			
+			
+			
 			
 			// last paket
 /**/		System.out.println("Done with the file, now follows the crc");
@@ -139,14 +143,7 @@ class Client {
 			}
 				
 	        // read out the session- and PackageNumber and check if they are correct
-	        bufReceive = ByteBuffer.wrap(receiveData);
-			bufReceive.get(sessionNumberReceived);
-			packageNumberReceived = bufReceive.get();
-			
-		    if(!Arrays.equals(sessionNumber, sessionNumberReceived))
-				System.out.println("SN is incorrect");
-			if (packageNumber != (packageNumberReceived))
-				System.out.println("PN is incorrect");
+			checkSNandPN(receiveData);
 
 		    clientSocket.close();
 		}
@@ -167,6 +164,30 @@ class Client {
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
+	
+	public static int checkSNandPN(byte[] receiveData)
+	{
+        ByteBuffer buf = ByteBuffer.wrap(receiveData);
+		buf.get(sessionNumberReceived);
+		packageNumberReceived = buf.get();
+		
+	    if(!Arrays.equals(sessionNumber, sessionNumberReceived))
+	    {
+	    	System.out.println("SN is incorrect");
+	    	return 1;
+	    }
+	    
+	    if (packageNumber != (packageNumberReceived))
+		{
+			System.out.println("PN is incorrect");
+			return 2;
+		}
+		
+		return 0;
+	}
+	
+	
+	
 	public static byte flip(byte var)
 	{
 		// flip packageNumber
@@ -224,6 +245,7 @@ class Client {
 		printByteArray(fileLength);
 		printByteArray(fileNameLength);
 		printByteArray(fileName);
+		 printByteArray(crc);
 		System.out.println();
 		
 	}

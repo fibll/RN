@@ -132,7 +132,9 @@ class Server {
 						fileName = receive.getNextData(fileName.length);
 						
 						// CRC
-						putIntintoByteBuffer(crc, getCRC(receiveData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));
+						calcCRC(crc, receiveData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length);
+						
+						printByteArray(crc);
 						
 						// get CRC and check if it is the same
 						crcReceived = receive.getNextData(crcReceived.length);
@@ -244,6 +246,38 @@ class Server {
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
+	
+	public static void printByteArray(byte[] array)
+	{
+		System.out.println();
+		
+		for(int i = 0; i < array.length; i++)
+		{
+			System.out.print(array[i] + " ");
+		}
+		
+		System.out.println();
+	}
+	
+	public static void calcCRC(byte[] crc, byte[] data, int length)
+	{
+		byte[] startWithoutCRC = new byte[length];
+		
+		// prepare CRC Array
+		ByteBuffer buf = ByteBuffer.wrap(startWithoutCRC);
+		buf.put(data, 0, startWithoutCRC.length);
+		
+		// CRC
+		CRC32 crcCheck = new CRC32();
+		crcCheck.update(startWithoutCRC);
+/**/	crcCheck.getValue();
+
+		buf = ByteBuffer.wrap(crc);
+		buf.allocate(crc.length);
+		buf.putInt((int)crcCheck.getValue());
+	}
+	
+	
 	
 	public static byte flip(byte var)
 	{
