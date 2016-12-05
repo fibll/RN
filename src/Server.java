@@ -87,7 +87,8 @@ class Server {
 					receivePacket.setData(receiveData);
 					serverSocket.receive(receivePacket);
 					receive.setData(receiveData);
-					System.out.println("--------------------------------\nPackage received");
+					System.out.println("--------------------------------\n");
+					System.out.println("Package received");
 			        
 					// initiate sessionNumber and packageNumber
 					sessionNumberReceived = receive.getNextData(sessionNumber.length);
@@ -147,7 +148,21 @@ class Server {
 							crcData.reset();
 							
 							// get fileNameString
-	/**/					//fileNameString = new String(fileName);
+	/**/					fileNameString = new String(fileName); 
+							
+							if(new File(fileNameString).exists())
+							{
+								for(int i = 1; i < 10; i++)
+								{
+									if(!new File(fileNameString + i).exists())
+									{
+										fileNameString += i;
+										break;
+									}
+								}
+							}
+								
+							fos = new FileOutputStream(fileNameString, true);
 						}
 					}
 					else if(packageNumberReceived != packageNumber)

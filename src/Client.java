@@ -11,6 +11,7 @@ import java.util.zip.CRC32;
 
 import org.omg.CORBA.PRIVATE_MEMBER;
 
+import beleg.OwnPackage;
 import beleg.StartPackage;
 
 class Client {
@@ -57,14 +58,13 @@ class Client {
 			byte[] sendData = new byte[PAKETSIZE];
 			byte[] receiveData = new byte[PAKETSIZE];
 			
-			
 			// set ip address
 			InetAddress IPAddress = InetAddress.getByName(host);
 			
-			// create send packet
+			// initialize send packet
 			sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
 			
-			// create receive packet
+			// initialize receive packet
 			receivePacket = new DatagramPacket(receiveData, receiveData.length);
 			
 
