@@ -9,6 +9,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.zip.CRC32;
 
+import org.omg.CORBA.PRIVATE_MEMBER;
+
 import beleg.StartPackage;
 
 class Client {
@@ -20,6 +22,9 @@ class Client {
 	private	static byte[] sessionNumberReceived = new byte[2];
 	private static byte packageNumberReceived = -1;
 	
+	private static DatagramSocket clientSocket;
+	private static DatagramPacket sendPacket;
+	private static DatagramPacket receivePacket;
 	
 	private static CRC32 crcData = new CRC32();
 	
@@ -44,7 +49,7 @@ class Client {
 			
 			// connection stuff
 			System.out.println("Connect...");
-			DatagramSocket clientSocket = new DatagramSocket();
+			clientSocket = new DatagramSocket();
 			clientSocket.setSoTimeout(1000);
 			
 
@@ -57,10 +62,10 @@ class Client {
 			InetAddress IPAddress = InetAddress.getByName(host);
 			
 			// create send packet
-			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
+			sendPacket = new DatagramPacket(sendData, sendData.length, IPAddress, port);
 			
 			// create receive packet
-			DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+			receivePacket = new DatagramPacket(receiveData, receiveData.length);
 			
 
 			// send loop
@@ -86,17 +91,7 @@ class Client {
 				
 				
 				// receive
-				try
-				{
-					receivePacket.setData(receiveData);
-					clientSocket.receive(receivePacket);
-					System.out.println("Package received");
-				}
-				catch (SocketTimeoutException e)
-				{
-					System.out.println("Timeout occured!");
-					break;
-				}
+				receive(receiveData);
 					
 		        // read out the session- and PackageNumber and check if they are correct
 				checkSNandPN(receiveData);
@@ -112,38 +107,22 @@ class Client {
 			
 			
 			
-			
-			
-			
-			
-			
-			
-			// last paket
-/**/		System.out.println("Done with the file, now follows the crc");
+			// last package
+/**/		System.out.println("--- last package ---");
 
 			createLastDataPackage(sendData, crcData);
-			
 			
 			// send
 			sendPacket.setData(sendData);
 			clientSocket.send(sendPacket);
 			System.out.println("Package sent");
 			
-			
 			// receive
-			try
-			{
-				receivePacket.setData(receiveData);
-				clientSocket.receive(receivePacket);
-				System.out.println("Package received");
-			}
-			catch (SocketTimeoutException e)
-			{
-				System.out.println("Timeout occured!");
-			}
+			receive(receiveData);
 				
 	        // read out the session- and PackageNumber and check if they are correct
-			checkSNandPN(receiveData);
+			if(checkSNandPN(receiveData) == 0)
+				System.out.println("File fully transfered!\n--------------------------------");
 
 		    clientSocket.close();
 		}
@@ -163,7 +142,26 @@ class Client {
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
-	/***********************************************************************************************************/
+	/**
+	 * @throws IOException *********************************************************************************************************/
+	
+	public static void receive(byte[] receiveData) throws IOException
+	{
+		for(int i = 0; i < 10; i++)
+		{
+			try
+			{
+				receivePacket.setData(receiveData);
+				clientSocket.receive(receivePacket);
+				System.out.println("Package received");
+				break;
+			}
+			catch (SocketTimeoutException e)
+			{
+				System.out.println("Timeout occured!");
+			}
+		}
+	}
 	
 	public static int checkSNandPN(byte[] receiveData)
 	{
@@ -233,20 +231,22 @@ class Client {
 
 		
 		// crc
-/**/	putIntintoByteBuffer(crc, getCRC(sendData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));
-		
+		//putIntintoByteBuffer(crc, getCRC(sendData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));
+/**/	calcCRC(crc, sendData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length);
+
+
 		buf.put(crc);
 		System.out.println("..sendData contains values up to CRC32");
 		
-		// print sendData
-		printByteArray(sessionNumber);
-		printByteArray(packageNumber);
-		printByteArray(start);
-		printByteArray(fileLength);
-		printByteArray(fileNameLength);
-		printByteArray(fileName);
-		 printByteArray(crc);
-		System.out.println();
+//		// print sendData
+//		printByteArray(sessionNumber);
+//		printByteArray(packageNumber);
+//		printByteArray(start);
+//		printByteArray(fileLength);
+//		printByteArray(fileNameLength);
+//		printByteArray(fileName);
+//		 printByteArray(crc);
+//		System.out.println();
 		
 	}
 	
@@ -307,7 +307,7 @@ class Client {
 		// add fileData to sendData
 		byte[] crc = new byte[4];
 			
-		System.out.println("CRC: " + (int)crcData.getValue());
+		//System.out.println("CRC: " + (int)crcData.getValue());
 		
 /**/	putIntintoByteBuffer(crc, (int)crcData.getValue());
 		buf.put(crc);
@@ -338,6 +338,24 @@ class Client {
 		CRC32 crc = new CRC32();
 		crc.update(sendPacketWithoutCRC);
 		return (int)crc.getValue();
+	}
+	
+	public static void calcCRC(byte[] crc, byte[] data, int length)
+	{
+		byte[] startWithoutCRC = new byte[length];
+		
+		// prepare CRC Array
+		ByteBuffer buf = ByteBuffer.wrap(startWithoutCRC);
+		buf.put(data, 0, startWithoutCRC.length);
+		
+		// CRC
+		CRC32 crcCheck = new CRC32();
+		crcCheck.update(startWithoutCRC);
+/**/	crcCheck.getValue();
+
+		buf = ByteBuffer.wrap(crc);
+		buf.allocate(crc.length);
+		buf.putInt((int)crcCheck.getValue());
 	}
 }
 

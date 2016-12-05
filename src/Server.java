@@ -12,6 +12,11 @@ class Server {
 	
 	private static final int PAKETSIZE = 1500; //65536 - 29;
 	
+	// connection
+	private static DatagramSocket serverSocket;
+	private static DatagramPacket receivePacket;
+	private static DatagramPacket sendPacket;
+	
 	public static void main(String argv[]) throws Exception
 	{		
 		if(argv.length == 1)
@@ -19,6 +24,7 @@ class Server {
 			// variables
 			String startString = "Start";
 			ByteBuffer buf;
+			boolean loop = true;
 			
 			// start package
 			byte[] sessionNumber = new byte[2];
@@ -41,24 +47,18 @@ class Server {
 			byte[] crcReceived = new byte[4];
 			CRC32 crcData = new CRC32();
 			
-			// define packages
-			OwnPackage receive = new OwnPackage(PAKETSIZE);
-			OwnPackage ack = new OwnPackage(PAKETSIZE);
-			
 			
 			// file stuff
 			byte[] fileData = new byte[PAKETSIZE - (sessionNumber.length + 1)];
 			int fileDataCounter = 0;
 			
-			// open file output stream
-			FileOutputStream fos = new FileOutputStream(fileNameString, true);
 			
 			// connection
 			int port = Integer.parseInt(argv[0]);
 			InetAddress IPAddress;
 			
 			// Socket für Anfragen auf Port (chosen)
-			DatagramSocket serverSocket = new DatagramSocket(port);
+			serverSocket = new DatagramSocket(port);
 			
 			// send and receive Buffer
 /**/		byte[] sendData = new byte[PAKETSIZE];
@@ -66,169 +66,164 @@ class Server {
 
 
 			// create receive DatagramPacket
-			DatagramPacket receivePacket =  new DatagramPacket(receiveData, receiveData.length);
+			receivePacket =  new DatagramPacket(receiveData, receiveData.length);
 			
 			// create send DatagramPacket
-			DatagramPacket sendPacket = new DatagramPacket(sendData, sendData.length);
+			sendPacket = new DatagramPacket(sendData, sendData.length);
 
 			// from now on it works with one client
 			while(true)
 			{
-				// receive				
-				receivePacket.setData(receiveData);
-				serverSocket.receive(receivePacket);
-				receive.setData(receiveData);
-				System.out.println("Package received");
-		        
-				sessionNumberReceived = receive.getNextData(sessionNumber.length);
-				packageNumberReceived = receive.getNextData();				
-				
-				/*
-		        // create byteBuffer to read parts of the received Package
-		        bufReceive = ByteBuffer.wrap(receiveData); 
-				bufReceive.get(sessionNumberReceived);
-				packageNumberReceived = bufReceive.get();
-				*/
-
-				// new session?
-				if(!Arrays.equals(sessionNumber, sessionNumberReceived))
+				while(loop)
 				{
-					if(packageNumberReceived != 0)
-					{
-						System.out.println("Package Number has to be 0 in the beginning!");
-						break;
-					}
+					// open file output stream
+					FileOutputStream fos = new FileOutputStream(fileNameString, true);
 					
-					startReceived	 = receive.getNextData(startReceived.length);
-					fileLength		 = receive.getNextData(fileLength.length);
-					fileNameLength	 = receive.getNextData(fileNameLength.length);
+					// define packages
+					OwnPackage receive = new OwnPackage(PAKETSIZE);
+					OwnPackage ack = new OwnPackage(PAKETSIZE);
 					
-					/*
-					// get from start to FileNameLength
-			        bufReceive.get(startReceived);
-			        bufReceive.get(fileLength);
-			        bufReceive.get(fileNameLength);
-			        */
-					
-			        // was start text correctly sent?
-					if(!Arrays.equals(start, startReceived))
-					{
-						// Cancel session
-						System.out.println("Failure, new sessionNumber but no start string");
-						break;
-					}
-					else
-					{
-						// new session started
-						System.out.println("\n\n\nNew session");
-					
-						// save sessionNumber
-						sessionNumber = sessionNumberReceived.clone();
+					// receive				
+					receivePacket.setData(receiveData);
+					serverSocket.receive(receivePacket);
+					receive.setData(receiveData);
+					System.out.println("--------------------------------\nPackage received");
+			        
+					// initiate sessionNumber and packageNumber
+					sessionNumberReceived = receive.getNextData(sessionNumber.length);
+					packageNumberReceived = receive.getNextData();			
 
-						// get file name
-						buf = ByteBuffer.wrap(fileNameLength);
-						fileName = new byte[(int)buf.getShort()];
+					// new session?
+					if(!Arrays.equals(sessionNumber, sessionNumberReceived))
+					{
+						if(packageNumberReceived != 0)
+						{
+							System.out.println("Package Number has to be 0 in the beginning!");
+							break;
+						}
 						
-						fileName = receive.getNextData(fileName.length);
-						
-						// CRC
-						calcCRC(crc, receiveData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length);
-						
-						printByteArray(crc);
-						
-						// get CRC and check if it is the same
-						crcReceived = receive.getNextData(crcReceived.length);
-						
-						if(!Arrays.equals(crc, crcReceived))
-							System.out.println("CRC not equal");
+						startReceived	 = receive.getNextData(startReceived.length);
+						fileLength		 = receive.getNextData(fileLength.length);
+						fileNameLength	 = receive.getNextData(fileNameLength.length);
 						
 						
-						
-						// get fileLengthInt
-						buf = ByteBuffer.wrap(fileLength);
-						fileLengthInt = buf.getLong();
-						
-						// prepare fileDataCounter and CRC32
-						fileDataCounter = (int)fileLengthInt;
-						crcData.reset();
-						
-						// get fileNameString
-/**/					//fileNameString = new String(fileName);
-					}
-				}
-				else if(packageNumberReceived != packageNumber)
-				{
-					System.out.println("Wrong Package Number!");
-/**/				break;
-				}
-				else 
-				{					
-					if(fileDataCounter > 0)
-					{						
-						if(fileDataCounter > (PAKETSIZE - (sessionNumber.length + 1)))
-							fileData = new byte[(PAKETSIZE - (sessionNumber.length + 1))];
+				        // was start text correctly sent?
+						if(!Arrays.equals(start, startReceived))
+						{
+							// Cancel session
+							System.out.println("Failure, new sessionNumber but no start string");
+							break;
+						}
 						else
 						{
-							System.out.println("Last write!");
-							fileData = new byte[fileDataCounter];
-						}
-							
-						// read out the fileData and update crcData
-						fileData = receive.getNextData(fileData.length);
-//						bufReceive.get(fileData);
-						crcData.update(fileData);
+							// new session started
+							System.out.println("New session");
 						
-						// write into file and add amount of written data to fileDataCounter
-						fos.write(fileData);
-						fileDataCounter -= (PAKETSIZE - (sessionNumber.length + 1));
-					}
-					else
-					{
-						// get last Package with crc of client
-						
-						// end it
-						System.out.println("CRC: " + (int)crcData.getValue());
-						System.out.println("File fully transfered!");
-						break;
-					}
-				}
-				
-				packageNumber = packageNumberReceived;
-				
-				// set ip address and port right for the client
-				IPAddress = receivePacket.getAddress(); 
-				port = receivePacket.getPort();
-				
-				
-				// prepare ack
-				ack = new OwnPackage(PAKETSIZE);
-				ack.catData(sessionNumber);
-				ack.catData(packageNumber);
-				sendData = ack.getData();
-				
-				//bufSend = ByteBuffer.wrap(sendData);
-				//bufSend.put(sessionNumber);
-				//bufSend.put(packageNumber);
+							// save sessionNumber
+							sessionNumber = sessionNumberReceived.clone();
 
-  
-				// send
-				sendPacket.setAddress(IPAddress);
-				sendPacket.setPort(port);
-				sendPacket.setData(sendData);
-				serverSocket.send(sendPacket);
-				System.out.println("Package sent");
+							// get file name
+							buf = ByteBuffer.wrap(fileNameLength);
+							fileName = new byte[(int)buf.getShort()];
+							fileName = receive.getNextData(fileName.length);
+							
+							// CRC
+							calcCRC(crc, receiveData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length);
+							
+							// get CRC and check if it is the same
+							crcReceived = receive.getNextData(crcReceived.length);
+							
+							if(!Arrays.equals(crc, crcReceived))
+								System.out.println("CRC not equal");
+							
+							
+							
+							// get fileLengthInt
+							buf = ByteBuffer.wrap(fileLength);
+							fileLengthInt = buf.getLong();
+							
+							// prepare fileDataCounter and CRC32
+							fileDataCounter = (int)fileLengthInt;
+							crcData.reset();
+							
+							// get fileNameString
+	/**/					//fileNameString = new String(fileName);
+						}
+					}
+					else if(packageNumberReceived != packageNumber)
+					{
+						System.out.println("Wrong Package Number!");
+	/**/				break;
+					}
+					else 
+					{					
+						if(fileDataCounter > 0)
+						{						
+							if(fileDataCounter > (PAKETSIZE - (sessionNumber.length + 1)))
+								fileData = new byte[(PAKETSIZE - (sessionNumber.length + 1))];
+							else
+							{
+								System.out.println("Last write!");
+								fileData = new byte[fileDataCounter];
+							}
+								
+							// read out the fileData and update crcData
+							fileData = receive.getNextData(fileData.length);
+							crcData.update(fileData);
+							
+							// write into file and add amount of written data to fileDataCounter
+							fos.write(fileData);
+							fileDataCounter -= (PAKETSIZE - (sessionNumber.length + 1));
+						}
+						else
+						{
+							// get last Package with crc of client
+							crcReceived = receive.getNextData(4).clone();
+							
+							// end it
+							System.out.println("CRC: " + (int)crcData.getValue());
+							fos.close();
+							loop = false;
+						}
+					}
+					
+					packageNumber = packageNumberReceived;
+					
+					// set ip address and port right for the client
+					IPAddress = receivePacket.getAddress(); 
+					port = receivePacket.getPort();
+					
+					
+					// prepare ack
+					ack = new OwnPackage(PAKETSIZE);
+					ack.catData(sessionNumber);
+					ack.catData(packageNumber);
+					sendData = ack.getData();
+
+	  
+					// send
+					send(IPAddress, port, sendData);					
+					
+					// prepare for next send process
+					sendData = new byte[PAKETSIZE];
+					receiveData = new byte[PAKETSIZE];
+					
+					packageNumber = flip(packageNumber);
+					
+					if(!loop)
+						System.out.println("File fully transfered!");
+				}
+				sessionNumber = new byte[2];
+				packageNumber = 0;
+				loop = true;
 				
+				System.out.println("\nwaiting for new client\n--------------------------------");
 				
-				// prepare for next send process
-				sendData = new byte[PAKETSIZE];
-				receiveData = new byte[PAKETSIZE];
-				
-				packageNumber = flip(packageNumber);
-			}
-			fos.close();
-			// wait for next client
+				// wait for next client
+
+				}
 			// another while loop is needed
-			serverSocket.close();
+			//serverSocket.close();
 		}
 		else
 			System.out.println("Not the correct amount of arguments");
@@ -245,7 +240,17 @@ class Server {
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
-	/***********************************************************************************************************/
+	/**
+	 * @throws IOException *********************************************************************************************************/
+	
+	public static void send(InetAddress IPAddress, int port, byte[] sendData) throws IOException
+	{
+		sendPacket.setAddress(IPAddress);
+		sendPacket.setPort(port);
+		sendPacket.setData(sendData);
+		serverSocket.send(sendPacket);
+		System.out.println("Package sent");
+	}
 	
 	public static void printByteArray(byte[] array)
 	{
