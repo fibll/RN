@@ -94,6 +94,10 @@ class Server {
 					sessionNumberReceived = receive.getNextData(sessionNumber.length);
 					packageNumberReceived = receive.getNextData();			
 
+
+					printByteArray(sessionNumberReceived);
+					
+					
 					// new session?
 					if(!Arrays.equals(sessionNumber, sessionNumberReceived))
 					{
@@ -150,18 +154,9 @@ class Server {
 							// get fileNameString
 	/**/					fileNameString = new String(fileName); 
 							
-							if(new File(fileNameString).exists())
-							{
-								for(int i = 1; i < 10; i++)
-								{
-									if(!new File(fileNameString + i).exists())
-									{
-										fileNameString += i;
-										break;
-									}
-								}
-							}
-								
+							// is there already a file with that name?
+							fileNameString = getFileName(fileNameString);
+
 							fos = new FileOutputStream(fileNameString, true);
 						}
 					}
@@ -194,6 +189,8 @@ class Server {
 						{
 							// get last Package with crc of client
 							crcReceived = receive.getNextData(4).clone();
+							
+							printByteArray(crcReceived);
 							
 							// end it
 							System.out.println("CRC: " + (int)crcData.getValue());
@@ -257,6 +254,23 @@ class Server {
 	/***********************************************************************************************************/
 	/**
 	 * @throws IOException *********************************************************************************************************/
+	
+	public static String getFileName(String fileNameString)
+	{
+		if(new File(fileNameString).exists())
+		{
+			for(int i = 1; i < 10; i++)
+			{
+				if(!new File(fileNameString + i).exists())
+				{
+					fileNameString += i;
+					return fileNameString;
+				}
+			}
+		}
+		return "fail";
+	}
+	
 	
 	public static void send(InetAddress IPAddress, int port, byte[] sendData) throws IOException
 	{

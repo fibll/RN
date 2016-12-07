@@ -27,6 +27,8 @@ class Client {
 	private static DatagramPacket sendPacket;
 	private static DatagramPacket receivePacket;
 	
+	private static byte[] sendData;
+	
 	private static CRC32 crcData = new CRC32();
 	
 	public static void main( String argv[]) throws Exception
@@ -55,7 +57,7 @@ class Client {
 			
 
 			// send and receive Buffer
-			byte[] sendData = new byte[PAKETSIZE];
+			sendData = new byte[PAKETSIZE];
 			byte[] receiveData = new byte[PAKETSIZE];
 			
 			// set ip address
@@ -75,16 +77,19 @@ class Client {
 				{
 					// First sending process (startPackage)
 					createStartPackage(sendData, file);
+					printByteArray(sessionNumber);
 
 			    	first = false;
 				}
 				else
 				{
 					// continue sending process (dataPackage)
-					createDataPackage(sendData, fis, crcData);
+					createDataPackage(fis, crcData);
+					printByteArray(sessionNumber);
 				}
 				
 				// send
+				System.out.println("Size of sendData before sending: " + sendData.length);
 				sendPacket.setData(sendData);
 				clientSocket.send(sendPacket);
 				System.out.println("Package sent");
@@ -110,7 +115,7 @@ class Client {
 			// last package
 /**/		System.out.println("--- last package ---");
 
-			createLastDataPackage(sendData, crcData);
+			createLastDataPackage(crcData);
 			
 			// send
 			sendPacket.setData(sendData);
@@ -147,7 +152,7 @@ class Client {
 	
 	public static void receive(byte[] receiveData) throws IOException
 	{
-		for(int i = 0; i < 10; i++)
+		for(int i = 0; i < 1; i++)
 		{
 			try
 			{
@@ -271,46 +276,64 @@ class Client {
 		System.out.println();
 	}
 
-	public static void createDataPackage(byte[] sendData, FileInputStream fis, CRC32 crcData) throws IOException
+	public static void createDataPackage(FileInputStream fis, CRC32 crcData) throws IOException
 	{	
+		// get data out of file
+		byte[] data;
+		
+		
+				
+		if(fis.available() > PAKETSIZE - (sessionNumber.length + 1))
+			data = new byte[PAKETSIZE - (sessionNumber.length + 1)];
+		else 
+		{
+			data = new byte[fis.available()];
+			sendData = new byte[fis.available() + sessionNumber.length + 1];
+		}
+		
+		System.out.println("RemainingBytes: " + fis.available() + "\nsendData: " + sendData.length);
+
+		
+		fis.read(data);
+		
+
 		// prepare data package
 		ByteBuffer buf = ByteBuffer.wrap(sendData);
 		buf.put(sessionNumber);
 		buf.put(packageNumber);
-		
-		// get data out of file
-		byte[] data;
-		
-		if(fis.available() > PAKETSIZE - (sessionNumber.length + 1))
-			data = new byte[PAKETSIZE - (sessionNumber.length + 1)];
-		else 
-			data = new byte[fis.available()];
-		
-		fis.read(data);
 		
 		// add fileData to sendData
 		buf.put(data);
 		
 		// get new data in crcData
 		crcData.update(data);
-//		System.out.println("CRC: " + (int)crcData.getValue());
+		
+		
+		
+		// correct the remaining Bytes
+		
+		//		System.out.println("CRC: " + (int)crcData.getValue());
 		
 	}
 	
-	public static void createLastDataPackage(byte[] sendData, CRC32 crcData)
+	public static void createLastDataPackage(CRC32 crcData)
 	{	
-		// prepare data package
-		ByteBuffer buf = ByteBuffer.wrap(sendData);
-		buf.put(sessionNumber);
-		buf.put(packageNumber);
-		
 		// add fileData to sendData
 		byte[] crc = new byte[4];
 			
 		//System.out.println("CRC: " + (int)crcData.getValue());
+
+		// prepare data package
+		sendData = new byte[sessionNumber.length + 1 + crc.length];
+		
+		ByteBuffer buf = ByteBuffer.wrap(sendData);
+		buf.put(sessionNumber);
+		buf.put(packageNumber);
 		
 /**/	putIntintoByteBuffer(crc, (int)crcData.getValue());
 		buf.put(crc);
+		
+		printByteArray(crc);
 	}
 	
 	
