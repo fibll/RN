@@ -40,6 +40,7 @@ class Client {
 			int port = Integer.parseInt(argv[1]);
 			String fileNameString = argv[2];
 			
+			
 			ByteBuffer buf;
 			ByteBuffer bufReceive;
 			boolean first = true;
@@ -47,7 +48,6 @@ class Client {
 			// file
 			File file = new File(fileNameString);
 			FileInputStream fis = new FileInputStream(file);
-//			int fileDataCounter = 0;
 			
 			
 			// connection stuff
@@ -77,7 +77,6 @@ class Client {
 				{
 					// First sending process (startPackage)
 					createStartPackage(sendData, file);
-					printByteArray(sessionNumber);
 
 			    	first = false;
 				}
@@ -85,7 +84,6 @@ class Client {
 				{
 					// continue sending process (dataPackage)
 					createDataPackage(fis, crcData);
-					printByteArray(sessionNumber);
 				}
 				
 				// send
@@ -96,7 +94,11 @@ class Client {
 				
 				
 				// receive
-				receive(receiveData);
+				if(receive(receiveData) == 0)
+				{
+					System.out.println("Server is not reachable");
+					return;
+				}
 					
 		        // read out the session- and PackageNumber and check if they are correct
 				checkSNandPN(receiveData);
@@ -123,8 +125,8 @@ class Client {
 			System.out.println("Package sent");
 			
 			// receive
-			receive(receiveData);
-				
+			receive(receiveData);		
+			
 	        // read out the session- and PackageNumber and check if they are correct
 			if(checkSNandPN(receiveData) == 0)
 				System.out.println("File fully transfered!\n--------------------------------");
@@ -150,9 +152,11 @@ class Client {
 	/**
 	 * @throws IOException *********************************************************************************************************/
 	
-	public static void receive(byte[] receiveData) throws IOException
+	public static int receive(byte[] receiveData) throws IOException
 	{
-		for(int i = 0; i < 1; i++)
+		int i = 0;
+		
+		for(i = 0; i < 10; i++)
 		{
 			try
 			{
@@ -166,6 +170,10 @@ class Client {
 				System.out.println("Timeout occured!");
 			}
 		}
+		if(i == 10)
+			return 0;
+		else
+			return 1;
 	}
 	
 	public static int checkSNandPN(byte[] receiveData)
@@ -279,11 +287,10 @@ class Client {
 	public static void createDataPackage(FileInputStream fis, CRC32 crcData) throws IOException
 	{	
 		// get data out of file
-		byte[] data;
-		
-		
+		byte[] data;		
 				
-		if(fis.available() > PAKETSIZE - (sessionNumber.length + 1))
+		// is more or an equal amount of bytes remaining in the file? If not set byte[] to the remaining amount of bytes
+		if(fis.available() >= PAKETSIZE - (sessionNumber.length + 1))
 			data = new byte[PAKETSIZE - (sessionNumber.length + 1)];
 		else 
 		{
@@ -291,11 +298,7 @@ class Client {
 			sendData = new byte[fis.available() + sessionNumber.length + 1];
 		}
 		
-		System.out.println("RemainingBytes: " + fis.available() + "\nsendData: " + sendData.length);
-
-		
 		fis.read(data);
-		
 
 		// prepare data package
 		ByteBuffer buf = ByteBuffer.wrap(sendData);
@@ -306,14 +309,7 @@ class Client {
 		buf.put(data);
 		
 		// get new data in crcData
-		crcData.update(data);
-		
-		
-		
-		// correct the remaining Bytes
-		
-		//		System.out.println("CRC: " + (int)crcData.getValue());
-		
+		crcData.update(data);		
 	}
 	
 	public static void createLastDataPackage(CRC32 crcData)
@@ -336,7 +332,6 @@ class Client {
 		printByteArray(crc);
 	}
 	
-	
 	public static void putIntoByteBuffer(byte[] bufInto)
 	{
 		ByteBuffer buf = ByteBuffer.wrap(bufInto);
@@ -348,19 +343,6 @@ class Client {
 		ByteBuffer buf = ByteBuffer.wrap(bufInto);
 		buf.allocate(bufInto.length);
 		buf.putInt(integer);
-	}
-	
-	public static int getCRC(byte[] src, int dataLength)
-	{
-		// prepare CRC Array
-		byte[] sendPacketWithoutCRC = new byte[dataLength];
-		ByteBuffer buf = ByteBuffer.wrap(sendPacketWithoutCRC);
-		buf.put(src, 0, sendPacketWithoutCRC.length);
-		
-		// CRC
-		CRC32 crc = new CRC32();
-		crc.update(sendPacketWithoutCRC);
-		return (int)crc.getValue();
 	}
 	
 	public static void calcCRC(byte[] crc, byte[] data, int length)
@@ -381,65 +363,3 @@ class Client {
 		buf.putInt((int)crcCheck.getValue());
 	}
 }
-
-
-
-
-
-
-
-/*
-// crc test
-String bString = "123456789";
-byte[] a = new byte[4];
-byte[] b = bString.getBytes(StandardCharsets.US_ASCII);	
-byte[] CRC = new byte[4];
-
-CRC32 bla = new CRC32();
-bla.update(b);
-System.out.println("CRC: " + Long.toHexString(bla.getValue()));
-System.out.println("CRC: " + bla.getValue());
-*/
-
-
-
-
-
-/*
-//FileInputStream fis = new FileInputStream(file);
-			
- * 
-// equal?
-if(Arrays.equals(sessionNumber, receiveData))
-	System.out.println("Gleich");
-else
-	System.out.println("Ungleich!");
-*/
-
-
-// Datei übertragung
-/*
-// if start package was successful
-while(fis.read(bArray) != -1)
-{
-	// send
-	outToServer.write(sendData, 0, sendData.length);
-
-	// receive
-	inFromServer.readLine();
-}
-*/
-
-// close socket
-//clientSocket.close();
-
-// close file input stream
-//fis.close();
-
-
-/*
-ByteBuffer b = ByteBuffer.allocate(2);
-b.order(ByteOrder.BIG_ENDIAN); // optional, the initial order of a byte buffer is always BIG_ENDIAN.
-b.putShort((short)5);
-byte[] result = b.array();
-*/

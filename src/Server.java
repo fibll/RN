@@ -8,6 +8,24 @@ import java.io.FileInputStream;
 
 import beleg.OwnPackage;
 
+
+
+
+
+// Anmerkungen
+
+/*
+ * Server benötigt auch einen Timeout beim receive, auf 10s gesetzt
+ * 
+ * 
+ * 
+ * 
+ * */
+
+
+
+
+
 class Server {
 	
 	private static final int PAKETSIZE = 1500; //65536 - 29;
@@ -201,6 +219,8 @@ class Server {
 					
 					packageNumber = packageNumberReceived;
 					
+					
+/**/ 				// Sollte für die session gespeichert werden, da sonst ein andere Client intervenieren kann 
 					// set ip address and port right for the client
 					IPAddress = receivePacket.getAddress(); 
 					port = receivePacket.getPort();
@@ -261,7 +281,7 @@ class Server {
 		{
 			for(int i = 1; i < 10; i++)
 			{
-				if(!new File(fileNameString + i).exists())
+				if(!new File(fileNameString + "_" + i).exists())
 				{
 					fileNameString += i;
 					return fileNameString;

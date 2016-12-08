@@ -1,0 +1,32 @@
+-------------------------------------------
+Wed Nov 30 12:27:32 CET 2016
+Server v1.05: Waiting for new connection...
+Server: Start packet received
+IP / Port: /141.56.64.43 62356
+Start ID:-22168, Length: 20 Bytes, Filename: test.bin
+CRC Data StartPacket:8a4f2405 CRC field:5020180
+Start packet not correct!
+-------------------------------------------
+Thu Dec 01 14:36:54 CET 2016
+Server v1.05: Waiting for new connection...
+Server: Start packet received
+IP / Port: /141.56.64.43 62359
+Start ID:5440, Length: 20 Bytes, Filename: test.bin
+CRC Data StartPacket:1e9561c2 CRC field:c2e17038
+Start packet not correct!
+-------------------------------------------
+Thu Dec 01 14:38:50 CET 2016
+Server v1.05: Waiting for new connection...
+Server: Start packet received
+IP / Port: /141.56.70.134 35718
+Start ID:-20172, Length: 187870 Bytes, Filename: alice.txt
+CRC Data StartPacket:f0581080 CRC field:f0581080
+Thu Dec 01 14:56:30 CET 2016
+Server: All data received
+Server: CRC (received data): e065cad1
+Server: CRC (source data)  : 0
+CRC not OK !
+Server: Transmission time: 0.0s, data rate: Infinity kbit/s
+-------------------------------------------
+Thu Dec 01 14:56:30 CET 2016
+Server v1.05: Waiting for new connection...
