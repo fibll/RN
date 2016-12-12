@@ -3,8 +3,11 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Random;
 import java.util.zip.CRC32;
 import java.io.FileInputStream;
+
+import sun.security.x509.IPAddressName;
 
 import beleg.OwnPackage;
 
@@ -34,6 +37,11 @@ class Server {
 	private static DatagramSocket serverSocket;
 	private static DatagramPacket receivePacket;
 	private static DatagramPacket sendPacket;
+	
+	private static final double lossrate = 0.3;
+	private static final int delay = 100;  // milliseconds
+	
+	private static int packageCounter = 0;
 	
 	public static void main(String argv[]) throws Exception
 	{		
@@ -66,14 +74,26 @@ class Server {
 			CRC32 crcData = new CRC32();
 			
 			
+			
+			
+			
+		      // Create random number generator for use in simulating 
+		      // packet loss and network delay.
+		      Random random = new Random();
+			
+			
+			
+			
+			
+			
+			
 			// file stuff
 			byte[] fileData = new byte[PAKETSIZE - (sessionNumber.length + 1)];
 			int fileDataCounter = 0;
 			
-			
 			// connection
 			int port = Integer.parseInt(argv[0]);
-			InetAddress IPAddress;
+			InetAddress IPAddress = null;
 			
 			// Socket für Anfragen auf Port (chosen)
 			serverSocket = new DatagramSocket(port);
@@ -93,19 +113,22 @@ class Server {
 			while(true)
 			{
 				while(loop)
-				{
+				{					
 					// open file output stream
 					FileOutputStream fos = new FileOutputStream(fileNameString, true);
 					
 					// define packages
 					OwnPackage receive = new OwnPackage(PAKETSIZE);
 					OwnPackage ack = new OwnPackage(PAKETSIZE);
-					
+
 					// receive				
 					receivePacket.setData(receiveData);
-					serverSocket.receive(receivePacket);
+					serverSocket.receive(receivePacket); // wird nicht ausgeführt
 					receive.setData(receiveData);
-					System.out.println("--------------------------------\n");
+					//System.out.println("--------------------------------\n");
+
+					System.out.println("\n" + packageCounter);
+					packageCounter++;
 					System.out.println("Package received");
 			        
 					// initiate sessionNumber and packageNumber
@@ -114,6 +137,21 @@ class Server {
 
 
 					printByteArray(sessionNumberReceived);
+					System.out.println("PN: " + packageNumberReceived);
+					
+					
+					
+			         // Decide whether to reply, or simulate packet loss.
+			         if (random.nextDouble() < lossrate) {
+			            System.out.println("   Reply not sent.");
+			            packageCounter--;
+			            continue; 
+			         }
+					
+						
+			         // Simulate network delay.
+			         Thread.sleep((int) (random.nextDouble() * 2 * delay));
+					
 					
 					
 					// new session?
@@ -170,12 +208,17 @@ class Server {
 							crcData.reset();
 							
 							// get fileNameString
-	/**/					fileNameString = new String(fileName); 
+/**/						fileNameString = new String(fileName);
 							
 							// is there already a file with that name?
 							fileNameString = getFileName(fileNameString);
 
 							fos = new FileOutputStream(fileNameString, true);
+							
+							
+							// set ip address and port right for the client
+							IPAddress = receivePacket.getAddress(); 
+							port = receivePacket.getPort();
 						}
 					}
 					else if(packageNumberReceived != packageNumber)
@@ -184,7 +227,7 @@ class Server {
 	/**/				break;
 					}
 					else 
-					{					
+					{	
 						if(fileDataCounter > 0)
 						{						
 							if(fileDataCounter > (PAKETSIZE - (sessionNumber.length + 1)))
@@ -215,16 +258,7 @@ class Server {
 							fos.close();
 							loop = false;
 						}
-					}
-					
-					packageNumber = packageNumberReceived;
-					
-					
-/**/ 				// Sollte für die session gespeichert werden, da sonst ein andere Client intervenieren kann 
-					// set ip address and port right for the client
-					IPAddress = receivePacket.getAddress(); 
-					port = receivePacket.getPort();
-					
+					}							         
 					
 					// prepare ack
 					ack = new OwnPackage(PAKETSIZE);
@@ -234,7 +268,7 @@ class Server {
 
 	  
 					// send
-					send(IPAddress, port, sendData);					
+					send(IPAddress, port, sendData);			
 					
 					// prepare for next send process
 					sendData = new byte[PAKETSIZE];
@@ -249,10 +283,11 @@ class Server {
 				packageNumber = 0;
 				loop = true;
 				
-				System.out.println("\nwaiting for new client\n--------------------------------");
+				//System.out.println("\nwaiting for new client\n--------------------------------");
 				
 				// wait for next client
 
+				break;
 				}
 			// another while loop is needed
 			//serverSocket.close();
@@ -283,7 +318,7 @@ class Server {
 			{
 				if(!new File(fileNameString + "_" + i).exists())
 				{
-					fileNameString += i;
+					fileNameString += "_" + i;
 					return fileNameString;
 				}
 			}
@@ -303,7 +338,7 @@ class Server {
 	
 	public static void printByteArray(byte[] array)
 	{
-		System.out.println();
+//		System.out.println();
 		
 		for(int i = 0; i < array.length; i++)
 		{

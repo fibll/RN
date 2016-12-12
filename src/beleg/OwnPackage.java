@@ -111,20 +111,5 @@ public class OwnPackage {
 		readCounter++;
         return array;
 	}
-	
-	
-	
-	//-- Methoden --
-	// setter:
-	// ip, port, sessionNumber, packageNumber, daten
-	
-	//getter:
-	// ip, port, sessionNumber, packageNumber, daten
-	// 
-	
-	// add data
-	// versenden?
-	// empfangen?
-	
-	
+
 }

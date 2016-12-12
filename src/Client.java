@@ -5,6 +5,7 @@ import java.nio.charset.Charset;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Random;
+import java.util.Set;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.zip.CRC32;
@@ -31,10 +32,14 @@ class Client {
 	
 	private static CRC32 crcData = new CRC32();
 	
+	private static boolean repeat = false;
+	
+	private static int packageCounter = 0;
+	
 	public static void main( String argv[]) throws Exception
 	{
 		if(argv.length == 3)
-		{
+		{	
 			// arguments
 			String host = argv[0];
 			int port = Integer.parseInt(argv[1]);
@@ -83,18 +88,14 @@ class Client {
 				else
 				{
 					// continue sending process (dataPackage)
-					createDataPackage(fis, crcData);
-				}
+//					if(!repeat)
+						createDataPackage(fis, crcData);
+//					else
+//						repeat = false;
+				}				
 				
-				// send
-				System.out.println("Size of sendData before sending: " + sendData.length);
-				sendPacket.setData(sendData);
-				clientSocket.send(sendPacket);
-				System.out.println("Package sent");
-				
-				
-				// receive
-				if(receive(receiveData) == 0)
+				// send and receive
+				if(sendAndReceive(receiveData) == 0)
 				{
 					System.out.println("Server is not reachable");
 					return;
@@ -112,22 +113,20 @@ class Client {
 				packageNumber = flip(packageNumber);
 			}
 			
-			
-			
 			// last package
 /**/		System.out.println("--- last package ---");
 
 			createLastDataPackage(crcData);
 			
-			// send
-			sendPacket.setData(sendData);
-			clientSocket.send(sendPacket);
-			System.out.println("Package sent");
 			
-			// receive
-			receive(receiveData);		
+			// send and receive
+			if(sendAndReceive(receiveData) == 0)
+			{
+				System.out.println("Server is not reachable!");
+				return;
+			}
 			
-	        // read out the session- and PackageNumber and check if they are correct
+/**/        // read out the session- and PackageNumber and check if they are correct, if packagenumber is old should it resend?
 			if(checkSNandPN(receiveData) == 0)
 				System.out.println("File fully transfered!\n--------------------------------");
 
@@ -152,14 +151,29 @@ class Client {
 	/**
 	 * @throws IOException *********************************************************************************************************/
 	
-	public static int receive(byte[] receiveData) throws IOException
+	public static void send() throws IOException
+	{
+		System.out.println("\n" + packageCounter);
+		packageCounter++;
+		
+		sendPacket.setData(sendData);
+		clientSocket.send(sendPacket);
+		System.out.println("SN: " + sendData[0] + " " + sendData[1]);
+		System.out.println("PN: " + sendData[2]);
+		System.out.println("Package sent");
+	}
+	
+	public static int sendAndReceive(byte[] receiveData) throws IOException
 	{
 		int i = 0;
+		int iMax = 10;
 		
-		for(i = 0; i < 10; i++)
+		for(i = 0; i < iMax; i++)
 		{
 			try
 			{
+				send();
+				
 				receivePacket.setData(receiveData);
 				clientSocket.receive(receivePacket);
 				System.out.println("Package received");
@@ -167,10 +181,12 @@ class Client {
 			}
 			catch (SocketTimeoutException e)
 			{
-				System.out.println("Timeout occured!");
+				System.out.println("------ Timeout occured!");
+				repeat = true;
+				packageCounter--;
 			}
 		}
-		if(i == 10)
+		if(i == iMax)
 			return 0;
 		else
 			return 1;
@@ -244,28 +260,16 @@ class Client {
 
 		
 		// crc
-		//putIntintoByteBuffer(crc, getCRC(sendData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length));
 /**/	calcCRC(crc, sendData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length);
 
 
 		buf.put(crc);
-		System.out.println("..sendData contains values up to CRC32");
-		
-//		// print sendData
-//		printByteArray(sessionNumber);
-//		printByteArray(packageNumber);
-//		printByteArray(start);
-//		printByteArray(fileLength);
-//		printByteArray(fileNameLength);
-//		printByteArray(fileName);
-//		 printByteArray(crc);
-//		System.out.println();
-		
+		System.out.println("..sendData contains values up to CRC32");		
 	}
 	
 	public static void printByteArray(byte[] array)
 	{
-		System.out.println();
+//		System.out.println();
 		
 		for(int i = 0; i < array.length; i++)
 		{
@@ -285,7 +289,7 @@ class Client {
 	}
 
 	public static void createDataPackage(FileInputStream fis, CRC32 crcData) throws IOException
-	{	
+	{
 		// get data out of file
 		byte[] data;		
 				
@@ -302,7 +306,9 @@ class Client {
 
 		// prepare data package
 		ByteBuffer buf = ByteBuffer.wrap(sendData);
+		System.out.println("Before: " + sendData[0] + " " + sendData[1]);
 		buf.put(sessionNumber);
+		System.out.println("After: " + sendData[0] + " " + sendData[1]);
 		buf.put(packageNumber);
 		
 		// add fileData to sendData
@@ -316,8 +322,6 @@ class Client {
 	{	
 		// add fileData to sendData
 		byte[] crc = new byte[4];
-			
-		//System.out.println("CRC: " + (int)crcData.getValue());
 
 		// prepare data package
 		sendData = new byte[sessionNumber.length + 1 + crc.length];
