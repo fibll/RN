@@ -27,14 +27,19 @@ class Client {
 	private static DatagramSocket clientSocket;
 	private static DatagramPacket sendPacket;
 	private static DatagramPacket receivePacket;
-	
 	private static byte[] sendData;
 	
 	private static CRC32 crcData = new CRC32();
-	
-	private static boolean repeat = false;
-	
 	private static int packageCounter = 0;
+	
+	// RTT
+	private static double startTimeMeasure;
+	private static double sRTT = -1;
+	private static double eRTT = -1;
+	private static double alpha = 0.125;
+	private static double devRTT;
+	private static double beta = 0.125;
+	private static double rto;
 	
 	public static void main( String argv[]) throws Exception
 	{
@@ -87,11 +92,7 @@ class Client {
 				}
 				else
 				{
-					// continue sending process (dataPackage)
-//					if(!repeat)
-						createDataPackage(fis, crcData);
-//					else
-//						repeat = false;
+					createDataPackage(fis, crcData);
 				}				
 				
 				// send and receive
@@ -151,15 +152,38 @@ class Client {
 	/**
 	 * @throws IOException *********************************************************************************************************/
 	
+	public static void calcRTO()
+	{
+		if(eRTT == -1)
+		{
+			eRTT = sRTT / 1000000;
+			devRTT = 0;
+			rto = 1000;
+		}
+		else
+		{
+			eRTT = (1-alpha) * eRTT + alpha * sRTT;
+			devRTT = (1 - beta) * devRTT + beta * (sRTT - eRTT);
+			rto = eRTT + 4 * devRTT;
+			
+			if(rto < 1000)
+				rto = 1000;
+			
+			
+		}
+		//System.out.println("RTO: " + rto + "ms");
+		
+	}
+	
 	public static void send() throws IOException
 	{
 		System.out.println("\n" + packageCounter);
 		packageCounter++;
 		
 		sendPacket.setData(sendData);
+		
+		startTimeMeasure = System.nanoTime();
 		clientSocket.send(sendPacket);
-		System.out.println("SN: " + sendData[0] + " " + sendData[1]);
-		System.out.println("PN: " + sendData[2]);
 		System.out.println("Package sent");
 	}
 	
@@ -176,13 +200,18 @@ class Client {
 				
 				receivePacket.setData(receiveData);
 				clientSocket.receive(receivePacket);
+				
+				sRTT = System.nanoTime() - startTimeMeasure;
 				System.out.println("Package received");
+				
+				// calculate RTO
+				calcRTO();
+				
 				break;
 			}
 			catch (SocketTimeoutException e)
 			{
 				System.out.println("------ Timeout occured!");
-				repeat = true;
 				packageCounter--;
 			}
 		}
@@ -306,9 +335,7 @@ class Client {
 
 		// prepare data package
 		ByteBuffer buf = ByteBuffer.wrap(sendData);
-		System.out.println("Before: " + sendData[0] + " " + sendData[1]);
 		buf.put(sessionNumber);
-		System.out.println("After: " + sendData[0] + " " + sendData[1]);
 		buf.put(packageNumber);
 		
 		// add fileData to sendData

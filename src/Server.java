@@ -136,8 +136,8 @@ class Server {
 					packageNumberReceived = receive.getNextData();			
 
 
-					printByteArray(sessionNumberReceived);
-					System.out.println("PN: " + packageNumberReceived);
+//					printByteArray(sessionNumberReceived);
+//					System.out.println("PN: " + packageNumberReceived);
 					
 					
 					
