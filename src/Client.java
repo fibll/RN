@@ -4,6 +4,7 @@ import java.io.FileInputStream;
 import java.nio.charset.Charset;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.text.DecimalFormat;
 import java.util.Random;
 import java.util.Set;
 import java.nio.charset.StandardCharsets;
@@ -12,8 +13,22 @@ import java.util.zip.CRC32;
 
 import org.omg.CORBA.PRIVATE_MEMBER;
 
+import com.sun.org.apache.xerces.internal.impl.dtd.models.DFAContentModel;
+
 import beleg.OwnPackage;
 import beleg.StartPackage;
+
+
+
+
+/*
+ * Client soll auch so tun als ob er Pakete nicht sendet 
+ * 
+ * */
+
+
+
+
 
 class Client {
 	private static final int PAKETSIZE = 1500; //65536 - 29;
@@ -33,13 +48,18 @@ class Client {
 	private static int packageCounter = 0;
 	
 	// RTT
-	private static double startTimeMeasure;
+	private static double startMeasureTimer;
+	private static double startPrintTimer = System.nanoTime();
+	private static double startTotalMeasureTimer;
+	
 	private static double sRTT = -1;
 	private static double eRTT = -1;
 	private static double alpha = 0.125;
 	private static double devRTT;
 	private static double beta = 0.125;
 	private static double rto;
+	
+	private static DecimalFormat decimalFormat = new DecimalFormat("0.00");
 	
 	public static void main( String argv[]) throws Exception
 	{
@@ -85,6 +105,8 @@ class Client {
 			{
 				if(first)
 				{
+					startTotalMeasureTimer = System.nanoTime();
+					
 					// First sending process (startPackage)
 					createStartPackage(sendData, file);
 
@@ -115,21 +137,24 @@ class Client {
 			}
 			
 			// last package
-/**/		System.out.println("--- last package ---");
-
 			createLastDataPackage(crcData);
 			
 			
 			// send and receive
 			if(sendAndReceive(receiveData) == 0)
 			{
-				System.out.println("Server is not reachable!");
+				System.out.println("Server is not reachable!                                ");
 				return;
 			}
 			
+			// print totaleDatarate
+			double totalDatarate = fileNameString.length()/((System.nanoTime() - startTotalMeasureTimer)/1000000000);
+			System.out.println("Durchschnittliche Datenrate: " + decimalFormat.format(totalDatarate) + " byte/s");
+			
+			
 /**/        // read out the session- and PackageNumber and check if they are correct, if packagenumber is old should it resend?
 			if(checkSNandPN(receiveData) == 0)
-				System.out.println("File fully transfered!\n--------------------------------");
+				System.out.println("File fully transfered!            \n--------------------------------");
 
 		    clientSocket.close();
 		}
@@ -172,19 +197,19 @@ class Client {
 			
 		}
 		//System.out.println("RTO: " + rto + "ms");
-		
 	}
 	
 	public static void send() throws IOException
 	{
-		System.out.println("\n" + packageCounter);
+//		System.out.println("\n" + packageCounter);
 		packageCounter++;
 		
 		sendPacket.setData(sendData);
 		
-		startTimeMeasure = System.nanoTime();
+		startMeasureTimer = System.nanoTime();
+		
 		clientSocket.send(sendPacket);
-		System.out.println("Package sent");
+//		System.out.println("Package sent");
 	}
 	
 	public static int sendAndReceive(byte[] receiveData) throws IOException
@@ -196,22 +221,28 @@ class Client {
 		{
 			try
 			{
+				// print datarate
+				if((System.nanoTime() - startPrintTimer) > 1000000000)
+				{
+					double datarate = ((sendData.length - sessionNumber.length - 1)/(sRTT / 1000000000)) / 1024;
+					System.out.print("Durchsatz: " + decimalFormat.format(datarate) + " kbyte/s     \r");
+//					System.out.println("sRTT: " + sRTT / 1000000000);
+					startPrintTimer = System.nanoTime();
+				}
+				
+				
 				send();
 				
 				receivePacket.setData(receiveData);
 				clientSocket.receive(receivePacket);
 				
-				sRTT = System.nanoTime() - startTimeMeasure;
-				System.out.println("Package received");
-				
-				// calculate RTO
-				calcRTO();
-				
+				sRTT = System.nanoTime() - startMeasureTimer;
+//				System.out.println("Package received");				
 				break;
 			}
 			catch (SocketTimeoutException e)
 			{
-				System.out.println("------ Timeout occured!");
+//				System.out.println("------ Timeout occured!");
 				packageCounter--;
 			}
 		}
@@ -246,7 +277,6 @@ class Client {
 	
 	public static byte flip(byte var)
 	{
-		// flip packageNumber
 		if(var == 0)
 			return 1;
 		else
@@ -290,10 +320,8 @@ class Client {
 		
 		// crc
 /**/	calcCRC(crc, sendData, sessionNumber.length + 1 + start.length + fileLength.length + fileNameLength.length + fileName.length);
-
-
-		buf.put(crc);
-		System.out.println("..sendData contains values up to CRC32");		
+		buf.put(crc);	
+		
 	}
 	
 	public static void printByteArray(byte[] array)
@@ -360,7 +388,7 @@ class Client {
 /**/	putIntintoByteBuffer(crc, (int)crcData.getValue());
 		buf.put(crc);
 		
-		printByteArray(crc);
+//		printByteArray(crc);
 	}
 	
 	public static void putIntoByteBuffer(byte[] bufInto)

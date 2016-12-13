@@ -20,6 +20,7 @@ import beleg.OwnPackage;
 /*
  * Server benötigt auch einen Timeout beim receive, auf 10s gesetzt
  * 
+ * Ignorieren anderer Anfragen zu gleichen Zeit
  * 
  * 
  * 
@@ -38,7 +39,7 @@ class Server {
 	private static DatagramPacket receivePacket;
 	private static DatagramPacket sendPacket;
 	
-	private static final double lossrate = 0.3;
+	private static final double lossrate = 0.1;
 	private static final int delay = 100;  // milliseconds
 	
 	private static int packageCounter = 0;
@@ -73,18 +74,9 @@ class Server {
 			byte[] crcReceived = new byte[4];
 			CRC32 crcData = new CRC32();
 			
-			
-			
-			
-			
-		      // Create random number generator for use in simulating 
-		      // packet loss and network delay.
-		      Random random = new Random();
-			
-			
-			
-			
-			
+		    // Create random number generator for use in simulating 
+		    // packet loss and network delay.
+		    Random random = new Random();
 			
 			
 			// file stuff
@@ -123,7 +115,17 @@ class Server {
 
 					// receive				
 					receivePacket.setData(receiveData);
-					serverSocket.receive(receivePacket); // wird nicht ausgeführt
+					
+					try
+					{
+						serverSocket.receive(receivePacket); // wird nicht ausgeführt	
+					}
+					catch (SocketTimeoutException e)
+					{
+						System.out.println("------ Timeout occured!");
+						break;
+					}
+							
 					receive.setData(receiveData);
 					//System.out.println("--------------------------------\n");
 
@@ -133,13 +135,9 @@ class Server {
 			        
 					// initiate sessionNumber and packageNumber
 					sessionNumberReceived = receive.getNextData(sessionNumber.length);
-					packageNumberReceived = receive.getNextData();			
+					packageNumberReceived = receive.getNextData();					
 
-
-//					printByteArray(sessionNumberReceived);
-//					System.out.println("PN: " + packageNumberReceived);
-					
-					
+					serverSocket.setSoTimeout(5000);
 					
 			         // Decide whether to reply, or simulate packet loss.
 			         if (random.nextDouble() < lossrate) {
@@ -286,8 +284,9 @@ class Server {
 				//System.out.println("\nwaiting for new client\n--------------------------------");
 				
 				// wait for next client
-
-				break;
+				serverSocket.setSoTimeout(0);
+				
+				//break;
 				}
 			// another while loop is needed
 			//serverSocket.close();

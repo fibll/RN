@@ -1,0 +1,11 @@
+#!bin/sh
+
+# correct amount of arguments
+if [ $# -ne 3 ]
+then
+	echo "Wrong amount of arguments"
+	exit 1
+else
+		java -classpath ./bin Client $1 $2 $3
+fi
+exit 0
