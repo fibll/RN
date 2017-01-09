@@ -7,6 +7,8 @@ import java.util.Random;
 import java.util.zip.CRC32;
 import java.io.FileInputStream;
 
+import com.sun.tracing.dtrace.ArgsAttributes;
+
 import sun.security.x509.IPAddressName;
 
 import beleg.OwnPackage;
@@ -17,12 +19,14 @@ import beleg.OwnPackage;
 
 // Anmerkungen
 
-/*
- * Server benötigt auch einen Timeout beim receive, auf 10s gesetzt
+/* 
+ * Server soll auch so tun als würde er gar kein Packet vom Client erhalten und darauf mit einem Ack reagieren das die vorherige Packetnummer enthält
  * 
- * Ignorieren anderer Anfragen zu gleichen Zeit
+ * Ignorieren anderer Clients zu gleichen Zeit
  * 
+ * Bei Fehlerhafter Packetnummer, erneut das vorherige Packet bestätigen
  * 
+ * CRC richtig shiften
  * 
  * */
 
@@ -39,15 +43,20 @@ class Server {
 	private static DatagramPacket receivePacket;
 	private static DatagramPacket sendPacket;
 	
-	private static final double lossrate = 0.1;
-	private static final int delay = 100;  // milliseconds
+	private static double lossrate;
+	private static int delay;  // milliseconds
 	
 	private static int packageCounter = 0;
 	
 	public static void main(String argv[]) throws Exception
 	{		
-		if(argv.length == 1)
+		if(argv.length == 3)
 		{
+			// arguments
+			int port = Integer.parseInt(argv[0]);
+			lossrate = Double.parseDouble(argv[1]);
+			delay = Integer.parseInt(argv[2]);
+			
 			// variables
 			String startString = "Start";
 			ByteBuffer buf;
@@ -84,15 +93,14 @@ class Server {
 			int fileDataCounter = 0;
 			
 			// connection
-			int port = Integer.parseInt(argv[0]);
 			InetAddress IPAddress = null;
 			
 			// Socket für Anfragen auf Port (chosen)
 			serverSocket = new DatagramSocket(port);
 			
 			// send and receive Buffer
-/**/		byte[] sendData = new byte[PAKETSIZE];
-/**/		byte[] receiveData = new byte[PAKETSIZE];
+			byte[] sendData = new byte[PAKETSIZE];
+			byte[] receiveData = new byte[PAKETSIZE];
 
 
 			// create receive DatagramPacket
@@ -126,6 +134,8 @@ class Server {
 						break;
 					}
 							
+					System.out.println("PN: " + receiveData[2]);
+					
 					receive.setData(receiveData);
 					//System.out.println("--------------------------------\n");
 
@@ -137,7 +147,7 @@ class Server {
 					sessionNumberReceived = receive.getNextData(sessionNumber.length);
 					packageNumberReceived = receive.getNextData();					
 
-					serverSocket.setSoTimeout(5000);
+					serverSocket.setSoTimeout(10000);
 					
 			         // Decide whether to reply, or simulate packet loss.
 			         if (random.nextDouble() < lossrate) {
@@ -206,7 +216,7 @@ class Server {
 							crcData.reset();
 							
 							// get fileNameString
-/**/						fileNameString = new String(fileName);
+							fileNameString = new String(fileName);
 							
 							// is there already a file with that name?
 							fileNameString = getFileName(fileNameString);
@@ -221,8 +231,10 @@ class Server {
 					}
 					else if(packageNumberReceived != packageNumber)
 					{
+/* solved */			// send Ack with last packageNumber
+						packageNumber = packageNumberReceived;
+						
 						System.out.println("Wrong Package Number!");
-	/**/				break;
 					}
 					else 
 					{	
@@ -311,6 +323,7 @@ class Server {
 	
 	public static String getFileName(String fileNameString)
 	{
+		System.out.println(fileNameString);
 		if(new File(fileNameString).exists())
 		{
 			for(int i = 1; i < 10; i++)
@@ -321,8 +334,12 @@ class Server {
 					return fileNameString;
 				}
 			}
+			return "fail";
 		}
-		return "fail";
+		else
+		{
+			return fileNameString;
+		}
 	}
 	
 	
@@ -336,9 +353,7 @@ class Server {
 	}
 	
 	public static void printByteArray(byte[] array)
-	{
-//		System.out.println();
-		
+	{		
 		for(int i = 0; i < array.length; i++)
 		{
 			System.out.print(array[i] + " ");
@@ -415,21 +430,3 @@ class Server {
 		wrapped.put(appendByte);
 	}
 }
-
-
-
-// Datei übertragung
-/*
-// receive as long as there is something so receive
-while(inFromClient.read(receiveData, 0, receiveData.length) >= 0)
-{
-	// write data into file
-//how much byte to go?
-	fos.write(receiveData, 0, receiveData.length);		
-
-	// send ack
-	outToClient.writeBytes("ACK" + '\n');
-
-	fos.close();
-}
-*/

@@ -22,7 +22,16 @@ import beleg.StartPackage;
 
 
 /*
- * Client soll auch so tun als ob er Pakete nicht sendet 
+ * 
+ * Client soll dynamischen Timeout haben
+ * 
+ * shiften:
+ * - CRC richtig shiften (mehrfach)
+ * - fileNameLength von int zu short shiften
+ * 
+ * Bei erhalten eines Acks mit falscher Packetnummer, das vorherige Packet nochmals schicken
+ * 
+ * Durchsatz ist bei -1.46 Byte/s bei nicht erreichbarem Server 
  * 
  * */
 
@@ -125,8 +134,14 @@ class Client {
 				}
 					
 		        // read out the session- and PackageNumber and check if they are correct
-				checkSNandPN(receiveData);
-/**/		    // what to do?, send package again
+				if(checkSNandPN(receiveData) == 1)
+				{
+/**/				// SN is incorrect => cancel connection?
+				}
+				else if(checkSNandPN(receiveData) == 2)
+				{
+/**/				// PN is incorrect => send packet again!
+				}
 			    
 				// prepare for next send process
 				sendData = new byte[PAKETSIZE];
@@ -152,10 +167,14 @@ class Client {
 			System.out.println("Durchschnittliche Datenrate: " + decimalFormat.format(totalDatarate) + " byte/s");
 			
 			
-/**/        // read out the session- and PackageNumber and check if they are correct, if packagenumber is old should it resend?
+			// read out the session- and PackageNumber and check if they are correct
 			if(checkSNandPN(receiveData) == 0)
 				System.out.println("File fully transfered!            \n--------------------------------");
-
+			else if(checkSNandPN(receiveData) == 2)
+			{
+/**/			// resend the last package
+			}
+			
 		    clientSocket.close();
 		}
 		else
@@ -175,38 +194,41 @@ class Client {
 	/***********************************************************************************************************/
 	/***********************************************************************************************************/
 	/**
+	 * @throws SocketException 
 	 * @throws IOException *********************************************************************************************************/
 	
-	public static void calcRTO()
+	public static void calcRTO() throws SocketException
 	{
 		if(eRTT == -1)
 		{
-			eRTT = sRTT / 1000000;
-			devRTT = 0;
+			eRTT = 3000;
+			devRTT = 1500;
 			rto = 1000;
 		}
 		else
 		{
-			eRTT = (1-alpha) * eRTT + alpha * sRTT;
-			devRTT = (1 - beta) * devRTT + beta * (sRTT - eRTT);
-			rto = eRTT + 4 * devRTT;
+			eRTT = ((1 - alpha) * eRTT) + (alpha * sRTT);
+			devRTT = (1 - beta) * devRTT + beta * Math.abs(sRTT - eRTT);
+			rto = (eRTT + 4 * devRTT);
 			
-			if(rto < 1000)
-				rto = 1000;
-			
-			
+			if(rto < sRTT)
+				System.out.println("RTO smaller then sRTT!!! -----------------------------");
+			// set timeout
+			//clientSocket.setSoTimeout((int)(rto));
 		}
-		//System.out.println("RTO: " + rto + "ms");
+		System.out.println("sRTT: " + sRTT + "");
+		System.out.println("eRTT: " + eRTT + "");
+		System.out.println("RTO: " + rto + "");
 	}
 	
 	public static void send() throws IOException
 	{
-//		System.out.println("\n" + packageCounter);
+		System.out.println("\n" + packageCounter);
 		packageCounter++;
 		
-		sendPacket.setData(sendData);
+		System.out.println("PN: " + sendData[2]);
 		
-		startMeasureTimer = System.nanoTime();
+		sendPacket.setData(sendData);
 		
 		clientSocket.send(sendPacket);
 //		System.out.println("Package sent");
@@ -221,28 +243,33 @@ class Client {
 		{
 			try
 			{
+				if(i == 0)
+					startMeasureTimer = System.nanoTime();
+				
+				send();
+				
 				// print datarate
 				if((System.nanoTime() - startPrintTimer) > 1000000000)
 				{
-					double datarate = ((sendData.length - sessionNumber.length - 1)/(sRTT / 1000000000)) / 1024;
+					double datarate = ((sendData.length - sessionNumber.length - 1)/(sRTT)) / 1024;
 					System.out.print("Durchsatz: " + decimalFormat.format(datarate) + " kbyte/s     \r");
-//					System.out.println("sRTT: " + sRTT / 1000000000);
+					
 					startPrintTimer = System.nanoTime();
 				}
-				
-				
-				send();
 				
 				receivePacket.setData(receiveData);
 				clientSocket.receive(receivePacket);
 				
-				sRTT = System.nanoTime() - startMeasureTimer;
-//				System.out.println("Package received");				
+				sRTT = (System.nanoTime() - startMeasureTimer) / 1000000;
+//				System.out.println("sRTT: " + sRTT);
+				
+				calcRTO();
+//				System.out.println("Package received");		
 				break;
 			}
 			catch (SocketTimeoutException e)
 			{
-//				System.out.println("------ Timeout occured!");
+				System.out.println("------ Timeout occured!              ");
 				packageCounter--;
 			}
 		}
