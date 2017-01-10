@@ -20,11 +20,7 @@ import beleg.OwnPackage;
 // Anmerkungen
 
 /* 
- * Server soll auch so tun als würde er gar kein Packet vom Client erhalten und darauf mit einem Ack reagieren das die vorherige Packetnummer enthält
- * 
  * Ignorieren anderer Clients zu gleichen Zeit
- * 
- * Bei Fehlerhafter Packetnummer, erneut das vorherige Packet bestätigen
  * 
  * CRC richtig shiften
  * 
@@ -45,6 +41,7 @@ class Server {
 	
 	private static double lossrate;
 	private static int delay;  // milliseconds
+	private static double failurerate = 0.0;
 	
 	private static int packageCounter = 0;
 	
@@ -155,12 +152,15 @@ class Server {
 			            packageCounter--;
 			            continue; 
 			         }
-					
 						
 			         // Simulate network delay.
 			         Thread.sleep((int) (random.nextDouble() * 2 * delay));
 					
-					
+			         // Decide whether to reply normaly or pretend that a bad package was received
+			         if (random.nextDouble() < failurerate && packageNumber == packageNumberReceived && packageCounter != 0) {
+			            System.out.println("   Message not reveived, sending old packageNumber.");
+			            packageNumberReceived = flip(packageNumberReceived);
+			         }
 					
 					// new session?
 					if(!Arrays.equals(sessionNumber, sessionNumberReceived))
@@ -204,8 +204,6 @@ class Server {
 							
 							if(!Arrays.equals(crc, crcReceived))
 								System.out.println("CRC not equal");
-							
-							
 							
 							// get fileLengthInt
 							buf = ByteBuffer.wrap(fileLength);

@@ -29,9 +29,6 @@ import beleg.StartPackage;
  * - CRC richtig shiften (mehrfach)
  * - fileNameLength von int zu short shiften
  * 
- * Bei erhalten eines Acks mit falscher Packetnummer, das vorherige Packet nochmals schicken
- * 
- * Durchsatz ist bei -1.46 Byte/s bei nicht erreichbarem Server 
  * 
  * */
 
@@ -83,6 +80,8 @@ class Client {
 			ByteBuffer buf;
 			ByteBuffer bufReceive;
 			boolean first = true;
+			boolean resend = false;
+			boolean last = true;
 			
 			// file
 			File file = new File(fileNameString);
@@ -121,6 +120,11 @@ class Client {
 
 			    	first = false;
 				}
+				else if (resend) 
+				{
+//					System.out.println("Resend package! *******************************");
+					resend = false;
+				}
 				else
 				{
 					createDataPackage(fis, crcData);
@@ -132,47 +136,61 @@ class Client {
 					System.out.println("Server is not reachable");
 					return;
 				}
-					
+				
 		        // read out the session- and PackageNumber and check if they are correct
 				if(checkSNandPN(receiveData) == 1)
 				{
 /**/				// SN is incorrect => cancel connection?
+					receiveData = new byte[PAKETSIZE];
+					resend = true;
 				}
 				else if(checkSNandPN(receiveData) == 2)
 				{
-/**/				// PN is incorrect => send packet again!
+/**/				// PN is incorrect => send package again!
+					receiveData = new byte[PAKETSIZE];
+					resend = true;
 				}
-			    
-				// prepare for next send process
-				sendData = new byte[PAKETSIZE];
-				receiveData = new byte[PAKETSIZE];
-			    
-				// flip packageNumber
-				packageNumber = flip(packageNumber);
+				else 
+				{
+					// prepare for next send process
+					sendData = new byte[PAKETSIZE];
+					receiveData = new byte[PAKETSIZE];
+				    
+					// flip packageNumber
+					packageNumber = flip(packageNumber);
+				}
 			}
 			
 			// last package
 			createLastDataPackage(crcData);
 			
 			
-			// send and receive
-			if(sendAndReceive(receiveData) == 0)
+			while(last)
 			{
-				System.out.println("Server is not reachable!                                ");
-				return;
-			}
-			
-			// print totaleDatarate
-			double totalDatarate = fileNameString.length()/((System.nanoTime() - startTotalMeasureTimer)/1000000000);
-			System.out.println("Durchschnittliche Datenrate: " + decimalFormat.format(totalDatarate) + " byte/s");
-			
-			
-			// read out the session- and PackageNumber and check if they are correct
-			if(checkSNandPN(receiveData) == 0)
-				System.out.println("File fully transfered!            \n--------------------------------");
-			else if(checkSNandPN(receiveData) == 2)
-			{
-/**/			// resend the last package
+				last = false;
+				
+				// send and receive
+				if(sendAndReceive(receiveData) == 0)
+				{
+					System.out.println("Server is not reachable!                                ");
+					return;
+				}
+				
+				// read out the session- and PackageNumber and check if they are correct
+				if(checkSNandPN(receiveData) == 0)
+				{
+					// print totaleDatarate
+					double totalDatarate = (file.length()/((System.nanoTime() - startTotalMeasureTimer)/1000000000) * 8/1024);
+					System.out.println("Durchschnittliche Datenrate: " + decimalFormat.format(totalDatarate) + " kbit/s");
+					
+					System.out.println("File fully transfered!            \n--------------------------------");
+				}
+				else if(checkSNandPN(receiveData) == 2)
+				{
+					// resend the last package
+//					System.out.println("Resend package! *******************************");
+					last = true;
+				}
 			}
 			
 		    clientSocket.close();
@@ -211,19 +229,19 @@ class Client {
 			devRTT = (1 - beta) * devRTT + beta * Math.abs(sRTT - eRTT);
 			rto = (eRTT + 4 * devRTT);
 			
-			if(rto < sRTT)
-				System.out.println("RTO smaller then sRTT!!! -----------------------------");
+//			if(rto < sRTT)
+//				System.out.println("RTO smaller then sRTT!!! -----------------------------");
 			// set timeout
 			//clientSocket.setSoTimeout((int)(rto));
 		}
-		System.out.println("sRTT: " + sRTT + "");
-		System.out.println("eRTT: " + eRTT + "");
-		System.out.println("RTO: " + rto + "");
+//		System.out.println("sRTT: " + sRTT + "");
+//		System.out.println("eRTT: " + eRTT + "");
+//		System.out.println("RTO: " + rto + "");
 	}
 	
 	public static void send() throws IOException
 	{
-		System.out.println("\n" + packageCounter);
+		System.out.println("\n#" + packageCounter);
 		packageCounter++;
 		
 		System.out.println("PN: " + sendData[2]);
@@ -251,8 +269,8 @@ class Client {
 				// print datarate
 				if((System.nanoTime() - startPrintTimer) > 1000000000)
 				{
-					double datarate = ((sendData.length - sessionNumber.length - 1)/(sRTT)) / 1024;
-					System.out.print("Durchsatz: " + decimalFormat.format(datarate) + " kbyte/s     \r");
+					double datarate = ((sendData.length - sessionNumber.length - 1)/(sRTT)) * 8/1024;
+//					System.out.print("Durchsatz: " + decimalFormat.format(datarate) + " kbit/s         \r");
 					
 					startPrintTimer = System.nanoTime();
 				}
@@ -264,12 +282,12 @@ class Client {
 //				System.out.println("sRTT: " + sRTT);
 				
 				calcRTO();
-//				System.out.println("Package received");		
+//				System.out.println("Package received");
 				break;
 			}
 			catch (SocketTimeoutException e)
 			{
-				System.out.println("------ Timeout occured!              ");
+//				System.out.println("------ Timeout occured!              ");
 				packageCounter--;
 			}
 		}
@@ -290,6 +308,9 @@ class Client {
 	    	System.out.println("SN is incorrect");
 	    	return 1;
 	    }
+	    
+//		System.out.println("packageNumber: " + packageNumber);
+//		System.out.println("packageNumberReceived: " + packageNumberReceived);
 	    
 	    if (packageNumber != (packageNumberReceived))
 		{
